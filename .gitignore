@@ -36,7 +36,6 @@ TrainingLog.md
 *.xlsx
 *.csv
 *.jsonl
-*.json
 *.zst
 
 # Image files

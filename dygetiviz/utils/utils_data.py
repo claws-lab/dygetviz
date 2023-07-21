@@ -8,7 +8,7 @@ from typing import Union
 def check_cwd():
     basename = osp.basename(osp.normpath(os.getcwd()))
     assert basename.lower() in [
-        "dygetviz"], "Must run this file from parent directory (misinformation/)"
+        "dygetviz"], "Must run this file from parent directory (dygetviz/)"
 
 
 def to_dict(obj):

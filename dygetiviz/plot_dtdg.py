@@ -24,7 +24,6 @@ from visualization.anchor_nodes_generator import get_dataframe_for_visualization
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-project_setup()
 
 ########## General Parameters. May be overwritten by individual datasets ##########
 K = 10
@@ -33,9 +32,10 @@ K = 10
 
 if __name__ == "__main__":
 
+    project_setup()
     data = load_data()
 
-    z = data["z"]
+    annotation = data.get("annotation", {})
     idx_reference_snapshot = data["idx_reference_snapshot"]
     interpolation = data["interpolation"]
     node_presence = data["node_presence"]
@@ -47,7 +47,8 @@ if __name__ == "__main__":
     projected_nodes = data["projected_nodes"]
     reference_nodes = data["reference_nodes"]
     snapshot_names = data["snapshot_names"]
-    annotation = data.get("annotation", {})
+    z = data["z"]
+
     idx2node = {idx: node for node, idx in node2idx.items()}
 
     """
@@ -285,9 +286,9 @@ if __name__ == "__main__":
         fig.write_html(
             osp.join(args.visual_dir, f"Trajectory_{visualization_name}.html"))
 
-        pio.write_json(fig, osp.join(args.visual_dir, f"Trajectory_{visualization_name}.json"))
-
         """
         To load the plot, use:
         fig = pio.read_json(osp.join(args.visual_dir, f"Trajectory_{visualization_name}.json"))
         """
+        pio.write_json(fig, osp.join(args.visual_dir, f"Trajectory_{visualization_name}.json"))
+

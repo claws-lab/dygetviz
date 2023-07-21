@@ -1,0 +1,12 @@
+{
+  "model_name": "GConvGRU",
+  "embedding_dim": 128,
+  "interpolation": 0.2,
+  "idx_reference_snapshot": 516,
+  "num_nearest_neighbors": [2, 3, 4, 5, 6],
+  "projected_nodes": ["BUDAPEST", "PEST", "BORSOD", "ZALA", "NOGRAD", "TOLNA", "VAS"],
+  "perplexity": 2,
+  "reference_nodes": ["BACS", "BARANYA", "BEKES", "BORSOD", "BUDAPEST", "CSONGRAD",
+       "FEJER", "GYOR", "HAJDU", "HEVES", "JASZ", "KOMAROM", "NOGRAD",
+       "PEST", "SOMOGY", "SZABOLCS", "TOLNA", "VAS", "VESZPREM", "ZALA"]
+}

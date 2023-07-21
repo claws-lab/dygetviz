@@ -1,0 +1,9 @@
+{
+  "embedding_dim": 128,
+  "idx_reference_snapshot": 60,
+  "interpolation": 0.2,
+  "model_name": "GConvGRU",
+  "perplexity": 5,
+  "projected_nodes": "projected_nodes.json",
+  "reference_nodes": "reference_nodes.json"
+}
