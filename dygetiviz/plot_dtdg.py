@@ -145,7 +145,7 @@ if __name__ == "__main__":
             except:
                 raise ValueError(f"Snapshot {idx_snapshot} does not exist")
 
-            z_projected_embeds = z[idx_snapshot, idx_projected_nodes,
+            z_projected_embeds: np.ndarray = z[idx_snapshot, idx_projected_nodes,
                                  :]
 
             cos_sim_mat = pairwise_cos_sim(z_projected_embeds,
@@ -153,7 +153,7 @@ if __name__ == "__main__":
 
             z_projected_coords_li = []
 
-            embedding_test = np.zeros((len(projected_nodes), 2))
+            embedding_test: np.ndarray = np.zeros((len(projected_nodes), 2))
 
             for i, node in enumerate(projected_nodes):
                 cos_sim_topk_closest_reference_nodes, idx_topk_closest_reference_nodes = \
@@ -200,10 +200,14 @@ if __name__ == "__main__":
         colors = get_colors(len(projected_nodes))
         data = []
 
+
+        # Initialize the figure with the background dots
         fig = go.Figure()
 
         for trace in fig_scatter.data:
             fig.add_trace(trace)
+
+        dataframes = {}
 
         for idx_node, node in enumerate(projected_nodes):
             num_total_snapshots = len(
@@ -226,9 +230,7 @@ if __name__ == "__main__":
                 'node_color': [colors[idx_node]] * (num_total_snapshots),
             }, index=np.arange(num_total_snapshots))
 
-            with pd.ExcelWriter(path_coords, engine='openpyxl',
-                                mode='a') as writer:
-                df.to_excel(writer, sheet_name=str(node), index=False)
+            dataframes[str(node)] = df
 
             if args.dataset_name == "Science2013Ant":
                 projected_node_name = f"{node} ({annotation.get(node, '')})"
@@ -272,6 +274,15 @@ if __name__ == "__main__":
 
             for trace in fig_line.data:
                 fig = fig.add_trace(trace)
+
+        # Write all df's to Excel outside the loop
+
+        mode = 'a' if osp.exists(path_coords) else 'w'
+
+        with pd.ExcelWriter(path_coords, engine='openpyxl', mode=mode, if_sheet_exists='replace') as writer:
+            for sheet, df in dataframes.items():
+                df.to_excel(writer, sheet_name=sheet, index=False)
+
 
         # fig = go.Figure(data=data + fig_scatter.data)
 

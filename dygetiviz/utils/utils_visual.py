@@ -28,16 +28,17 @@ def random_color(hex=False):
     return color
 
 
-def get_colors(num_colors):
+def get_colors(num_colors, palette_name="Spectral"):
     """Get a list of colors through seaborn
 
+    :param palette_name: Name of the color palette, such as `hls`, `Spectral`
     :param num_colors:
     :return:
     """
     import seaborn as sns
 
     # Use the hls color space from seaborn128
-    colors = sns.color_palette('hls', n_colors=num_colors)
+    colors = sns.color_palette(palette_name, n_colors=num_colors)
 
     # Convert the color tuples to hex strings
     colors = [rgb_to_hex(color) for color in colors]

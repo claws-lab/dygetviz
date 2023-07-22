@@ -29,6 +29,12 @@ Generate the visualization using the command:
 python dygetviz/plot_dtdg.py --dataset_name Chickenpox --model GConvGRU
 ```
 
+## Note
+
+
+
+- The Reddit dataset is a bit special because it is the only dataset that describes a bipartite graph. The first 60 snapshots are for each of the 60 snapshots. The last snapshot is for the background nodes. The shape of the embeddings is `` 
+
 ## Acknowledgments
 
 We thank members of the CLAWS Lab and SRI International for their feedback and support.
