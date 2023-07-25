@@ -16,4 +16,4 @@ node_type_to_size = {
 
 node_type_to_color = {v: k for k, v in color_to_node_type.items()}
 
-pure_color_palettes = ["Reds", "Blues", "Yellows", "Greens", "Oranges", "Purples", "Greys"]
+pure_color_palettes = ["Blues", "Reds", "Yellows", "Greens", "Oranges", "Purples", "Greys"]

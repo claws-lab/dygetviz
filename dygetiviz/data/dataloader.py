@@ -37,7 +37,6 @@ def load_data() -> dict:
 
 
     # Optional arguments
-
     # Whether to display node type (e.g. anomalous, normal)
     display_node_type = config.get("display_node_type", False)
     interpolation = config.get("interpolation", 0.2)
@@ -51,13 +50,7 @@ def load_data() -> dict:
             open(osp.join("data", args.dataset_name, "node2label.json"), 'r',
                  encoding='utf-8'))
 
-        label2node = {}
 
-        for node, label in node2label.items():
-            if label not in label2node:
-                label2node[label] = []
-
-            label2node[label].append(node)
 
     except FileNotFoundError:
         node2label = {}
@@ -106,6 +99,9 @@ def load_data() -> dict:
 
     elif args.dataset_name == "DGraphFin":
         plot_anomaly_labels = True
+        # Eliminate background nodes
+        node2label = {n: l for n, l in node2label.items() if l in [0, 1]}
+        snapshot_names = np.arange(17)
 
 
     elif args.dataset_name == "Reddit":
@@ -125,6 +121,19 @@ def load_data() -> dict:
         # ys = np.load(
         #     osp.join("data", args.dataset_name, f"{args.dataset_name}_ys.npy"))
         pass
+
+    try:
+        label2node = {}
+
+        for node, label in node2label.items():
+            if label not in label2node:
+                label2node[label] = []
+
+            label2node[label].append(node)
+
+    except:
+        label2node = {}
+
 
     if node_presence is None:
         try:

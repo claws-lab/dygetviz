@@ -1,0 +1,10 @@
+{
+  "embedding_dim": 128,
+  "idx_reference_snapshot": 16,
+  "interpolation": 0.2,
+  "model_name": "GConvGRU",
+  "perplexity": 20,
+  "display_node_type": true,
+  "reference_nodes": "reference_nodes.json",
+  "projected_nodes": [33989, 33697, 33928, 33911, 34020, 33724, 33734, 33845, 33863, 33946, 11284, 6265, 16850, 21962, 16023, 1685, 769, 2433, 5311, 17568]
+}

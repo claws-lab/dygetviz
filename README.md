@@ -26,8 +26,18 @@ Please refer to the homepage of [PyTorch](https://pytorch.org/get-started/locall
 Generate the visualization using the command:
 
 ```bash
+python dygetviz/plot_dtdg.py --dataset_name <DATASET_NAME> --model GConvGRU
+```
+
+Currently, `DATASET_NAME` can be selected from one of: `Ant`, `Chickenpox`, `DGraphFin`, `Reddit`
+
+
+
+```bash
 python dygetviz/plot_dtdg.py --dataset_name Chickenpox --model GConvGRU
 ```
+
+
 
 ## Note
 

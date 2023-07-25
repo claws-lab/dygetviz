@@ -19,6 +19,8 @@ from utils.utils_visual import get_colors
 
 project_setup()
 
+
+print("Loading data...")
 data = load_data()
 
 annotation = data.get("annotation", {})
@@ -43,13 +45,20 @@ nn = 5
 
 visualization_name = f"{args.dataset_name}_{args.model}_{args.visualization_model}_perplex{perplexity}_nn{nn}_interpolation{interpolation}_snapshot{idx_reference_snapshot}"
 
+print("Reading visualization cache...")
 fig_cached = pio.read_json(
     osp.join(args.visual_dir, f"Trajectory_{visualization_name}.json"))
 
 node2trace = {
-    trace['name']: trace for trace in fig_cached.data
+    trace['name'].split(' ')[0]: trace for trace in fig_cached.data
 }
-nodes = list(node2trace.keys())
+
+print("Getting candidate nodes ...")
+
+if args.dataset_name in ["DGraphFin"]:
+    nodes = [n for n, l in node2label.items() if l in [0, 1]]
+else:
+    nodes = list(node2idx.keys())
 
 options = []
 
@@ -66,6 +75,8 @@ else:
     label2colors = {
         0: get_colors(50, "Spectral")
     }
+
+print("Adding categories to the dropdown menu ...")
 
 for label, nodes_li in label2node.items():
     options.append({
@@ -84,9 +95,21 @@ for label, nodes_li in label2node.items():
         "value": label,
     })
 
+
+print("Adding nodes to the dropdown menu ...")
+
 for node, idx in node2idx.items():
+
+    # For the DGraphFin dataset, the background nodes (label = 2 or 3) are not meaningful due to insufficient information. So we do not visualize them
+
+    if display_node_type and args.dataset_name in ["DGraphFin"] and node2label.get(node) is None:
+        print(f"\tIgnoring node {node} ...")
+        continue
+
+
     if display_node_type:
         label = node2label[node]
+
 
         name = f"{node} ({label})"
 
@@ -148,6 +171,9 @@ def update_graph(search_values):
         print(f"Search values:\t{search_values}")
         for idx, value in enumerate(search_values):
 
+            if args.dataset_name == "DGraphFin" and node2label.get(value) is None:
+                print(f"Node {value} is a background node, so we ignore it.")
+                continue
             # Add a node
             if value in nodes:
 
