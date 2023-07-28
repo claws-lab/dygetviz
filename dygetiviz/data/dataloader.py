@@ -116,6 +116,8 @@ def load_data() -> dict:
                           91, 92, 95, 96, 97,
                           99]
 
+    elif args.dataset_name == "HistWords-EN-GNN":
+        snapshot_names = np.arange(1800, 2000, 10).tolist()
 
     else:
         # ys = np.load(

@@ -1,7 +1,10 @@
 # DyGETViz
 
+Our framework is DyGETViz, which stands for **Dynamic Graph Embedding Trajectories Visualization**.
+
 ## Installation
 
+### Install the Dependencies
 
 ```bash
 conda install scikit-learn pandas numpy matplotlib plotly
@@ -10,29 +13,38 @@ pip install
 ```
 
 
-Please refer to the homepage of [PyTorch](https://pytorch.org/get-started/locally/), [PyTorch Geometric](https://pytorch-geometric.readthedocs.io/en/latest/install/installation.html), [PyTorch Geometric Temporal](https://pytorch-geometric-temporal.readthedocs.io/en/latest/notes/installation.html) to install these 3 packages, respectively. 
+Please refer to the homepage of [PyTorch](https://pytorch.org/get-started/locally/), [PyTorch Geometric](https://pytorch-geometric.readthedocs.io/en/latest/install/installation.html), and [PyTorch Geometric Temporal](https://pytorch-geometric-temporal.readthedocs.io/en/latest/notes/installation.html) to install these 3 packages, respectively. 
+
+
+### Download the data
+
+- Download all the data from [Google Drive](https://drive.google.com/drive/folders/1Yctajha2NoF8y_JyE5hoX_47vwH0I4e2?usp=drive_link)
+- Put both `data/` and `outputs/` under the root directory of this repo.
 
 
 
 ## Getting Started
 
-### Procedures of thie cide
+### Procedures of Generating the Visualization
 
 - Step 1: Discrete-Time Dynamic Graph (DTDG) embedding training
-  - We use the [GConvGRU](https://pytorch-geometric-temporal.readthedocs.io/en/latest/modules/root.html) model from PyTorch Geometric Temporal to train embeddings of all datasets
-  - We extended the dataloader so that. The original dataloader only used static input at each snapshots.
-  - Note: This part is not included in the code yet. We directly provide the embeddings
+  - We use the [GConvGRU](https://pytorch-geometric-temporal.readthedocs.io/en/latest/modules/root.html) model from [PyTorch Geometric Temporal](https://pytorch-geometric-temporal.readthedocs.io/en/latest/notes/installation.html) to train embeddings of all datasets
+  - We extended the dataloader so that we can use a wide variety of data input formats. The original dataloader only used static input at each snapshot.
+  - Note: This part is not included in the code yet. For now, we directly provide the embeddings.
+
+- **Output**: DTDG embeddings of shape (T, N, D)
+
+  - T: The number of timestamps / snapshots
+  - N: The number of nodes
+  - D: Embedding dimension
 
 
 Step 2: Embedding Trajectories Generation
 
-Input: embeddings of shape (T, N, D)
+- **Input**: DTDG embeddings of shape (T, N, D)
 
-- T: The number of timestamps / snapshots
-- N: The number of nodes
-- D: Embedding dimension
 
-Output: JSON file that store the embedding trajectory for Dash
+- **Output**: JSON file that store the embedding trajectory for [Dash](https://dash.plotly.com/)
 
 
 Step 3: Visualizing in a Dash app interactively using the JSON file
@@ -64,9 +76,18 @@ python dygetviz/plot_dash.py --dataset_name Chickenpox --model GConvGRU
 
 ## Terminology
 
-- `DG`: Dynamic Graph
+- `DG`: Dynamic Graphs, which can be categorized into DTDG and CTDG
 - `DTDG`: Discrete-Time Dynamic Graphs
+- `CTDG`: Discrete-Time Dynamic Graphs
 - `Embedding Trajectories`: Please refer to the [JODIE paper (KDD2019)]() for more details
+
+## Datasets
+
+We provide the following dataset to be viewd in our visualization tool:
+
+- `Ant`: The ant movement dataset from [Tracking individuals shows spatial fidelity is a key regulator of ant social organization (Science 2013)](https://www.science.org/doi/10.1126/science.1234316)
+- `Chickenpox`: The chickenpox dataset from the paper [Chickenpox Cases in Hungary: a Benchmark Dataset for Spatiotemporal Signal Processing with Graph Neural Networks](https://arxiv.org/abs/2102.08100)
+- `HistWords`: The historical word co-occurrence dataset from [Diachronic Word Embeddings Reveal Statistical Laws of Semantic Change](https://arxiv.org/abs/1605.09096) ([GitHub](https://github.com/williamleif/histwords)) ([Website](https://nlp.stanford.edu/projects/histwords/))
 
 
 ## Explanation of Each Data File

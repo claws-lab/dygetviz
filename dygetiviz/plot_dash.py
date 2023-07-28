@@ -1,14 +1,17 @@
-"""
+"""Run the Dash server to interactively add nodes to the visualization.
 Plot using [Dash](https://dash.plotly.com/)
 """
 
 import os.path as osp
 
 import dash
+import dash_bootstrap_components as dbc
+import dash_daq as daq
+import numpy as np
 import plotly.graph_objects as go
 import plotly.io as pio
 from dash import dcc, html
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 
 import const
 import const_viz
@@ -19,24 +22,23 @@ from utils.utils_visual import get_colors
 
 project_setup()
 
-
 print("Loading data...")
 data = load_data()
 
-annotation = data.get("annotation", {})
-display_node_type = data["display_node_type"]
-idx_reference_snapshot = data["idx_reference_snapshot"]
-interpolation = data["interpolation"]
-node_presence = data["node_presence"]
-node2idx = data["node2idx"]
-node2label = data["node2label"]
-label2node = data["label2node"]
-num_nearest_neighbors = data["num_nearest_neighbors"]
-perplexity = data["perplexity"]
-plot_anomaly_labels = data["plot_anomaly_labels"]
-projected_nodes = data["projected_nodes"]
-reference_nodes = data["reference_nodes"]
-snapshot_names = data["snapshot_names"]
+annotation: dict = data.get("annotation", {})
+display_node_type: bool = data["display_node_type"]
+idx_reference_snapshot: int = data["idx_reference_snapshot"]
+interpolation: float = data["interpolation"]
+node_presence: np.ndarray = data["node_presence"]
+node2idx: dict = data["node2idx"]
+node2label: dict = data["node2label"]
+label2node: dict = data["label2node"]
+num_nearest_neighbors: int = data["num_nearest_neighbors"]
+perplexity: int = data["perplexity"]
+plot_anomaly_labels: bool = data["plot_anomaly_labels"]
+projected_nodes: np.ndarray = data["projected_nodes"]
+reference_nodes: np.ndarray = data["reference_nodes"]
+snapshot_names: list = data["snapshot_names"]
 z = data["z"]
 
 idx2node = {idx: node for node, idx in node2idx.items()}
@@ -69,17 +71,16 @@ if display_node_type:
     label2colors = {label: get_colors(12, palette)[::-1] for label, palette in
                     label2palette.items()}
 
-
 else:
-
     label2colors = {
-        0: get_colors(50, "Spectral")
+        0: get_colors(10, "Spectral")
     }
 
 print("Adding categories to the dropdown menu ...")
+options_categories = []
 
 for label, nodes_li in label2node.items():
-    options.append({
+    options_categories.append({
         "label": html.Span(
             [
                 "✨",
@@ -95,28 +96,27 @@ for label, nodes_li in label2node.items():
         "value": label,
     })
 
-
 print("Adding nodes to the dropdown menu ...")
+
+options_nodes = []
 
 for node, idx in node2idx.items():
 
     # For the DGraphFin dataset, the background nodes (label = 2 or 3) are not meaningful due to insufficient information. So we do not visualize them
-
-    if display_node_type and args.dataset_name in ["DGraphFin"] and node2label.get(node) is None:
+    if display_node_type and args.dataset_name in [
+        "DGraphFin"] and node2label.get(node) is None:
         print(f"\tIgnoring node {node} ...")
         continue
 
-
     if display_node_type:
         label = node2label[node]
-
 
         name = f"{node} ({label})"
 
     else:
         name = node
 
-    options.append({
+    options_nodes.append({
         "label": html.Span(
             [
                 html.Span(name, style={
@@ -131,24 +131,49 @@ for node, idx in node2idx.items():
         "value": node,  # Get a random node as the default value.
     })
 
-# Start the app
-app = dash.Dash(__name__)
+options = options_categories + options_nodes
+
+print("Start the app ...")
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 app.title = f"DyGetViz | {args.dataset_name}"
 
 app.layout = html.Div(
     [
-        dcc.Dropdown(
-            id='search-input',
-            options=options,
-            value='',
-            multi=True,
-            placeholder="Select a node",
-            style={
-                'width': '100%'
-            },
-            clearable=True
-        ),
+
+        dbc.Row([
+            dbc.Col([
+                dbc.Label("Add a trajectory:", className="form-label",
+                          id="note-trajectory"),
+                dcc.Dropdown(
+                    id='add-trajectory',
+                    options=options,
+                    value='',
+                    multi=True,
+                    placeholder="Select a node",
+                    style={
+                        'width': '100%'
+                    },
+                    clearable=True
+                )
+            ]),
+            dbc.Col([
+                dbc.Label("Add a background node.", className="form-label",
+                          id="note-background"),
+                dcc.Dropdown(
+                    id='add-background-node-name',
+                    options=options,
+                    value='',
+                    multi=True,
+                    placeholder="Select a background node",
+                    style={
+                        'width': '100%'
+                    },
+                    clearable=True
+                ),
+            ])
+        ]),
+
         dcc.Graph(id='dygetviz', style={
             'width': '100%',
             # Set the graph width to 100% of its parent container
@@ -156,26 +181,122 @@ app.layout = html.Div(
         }),
         html.Div("✨: a category. \n\"(1)\": a node label.", id="note"),
 
+        dbc.Row([
+            dbc.Col([
+                html.Label("Change Trajectory Color:"),
+                # Dropdown for selecting a node
+                dcc.Dropdown(
+                    id='node-selector',
+                    options=[],
+                    value=nodes[0],
+                    style={
+                        'width': '50%'
+                    },
+                ),
+
+                # Store the nodes in `trajectory_names`
+                dcc.Store(
+                    id='trajectory-names-store',
+                    data=[]
+                ),
+
+                daq.ColorPicker(
+                    id='color-picker',
+                    label='Color Picker',
+                    size=328,
+                    value=dict(hex='#119DFF')
+                ),
+                html.Div(id='color-picker-output-1'),
+                html.Button('Update Node Color', id='update-color-button',
+                            n_clicks=0, className="me-2"),
+            ])
+        ]),
     ])
 
 
 @app.callback(
     Output('dygetviz', 'figure'),
-    Input('search-input', 'value')
+    Output('trajectory-names-store', 'data'),
+    Input('add-trajectory', 'value'),
+    Input('add-background-node-name', 'value'),
+    Input('update-color-button', 'n_clicks'),
+    State('node-selector', 'value'),
+    State('color-picker', 'value'),
+    State('dygetviz', 'figure'),
+
 )
-def update_graph(search_values):
+def update_graph(trajectory_names, background_node_names, do_update_color,
+                 selected_node, selected_color, current_figure):
+    """
+    
+    :param trajectory_names: Names of the trajectories to be added into the visualization
+    :param background_node_names: 
+    :param do_update_color: 
+    :param selected_node: 
+    :param selected_color: 
+    :param current_figure: figure from the previous update
+    :return: 
+    """
+
+    ctx = dash.callback_context
+    action_name = ctx.triggered[0]['prop_id'].split('.')[0]
+    print(f"[Action]\t{action_name}")
     fig = go.Figure()
-    fig.add_trace(node2trace['background'])
 
-    if search_values:
-        print(f"Search values:\t{search_values}")
-        for idx, value in enumerate(search_values):
+    if current_figure is None:
+        figure_name2trace = {}
 
-            if args.dataset_name == "DGraphFin" and node2label.get(value) is None:
+
+    else:
+        figure_name2trace = {trace['name']: trace for idx, trace in
+                             enumerate(current_figure['data'])}
+
+    def add_background():
+        if figure_name2trace.get("background") is None:
+            fig.add_trace(node2trace['background'])
+
+    def add_traces():
+        for name, trace in figure_name2trace.items():
+            if name not in {"background"}:
+                fig.add_trace(trace)
+
+    if action_name == '':
+        """Launch the app for the first time. 
+        
+        Only add the background nodes
+        """
+        add_background()
+        return fig, trajectory_names
+
+    elif action_name == 'add-trajectory':
+
+        """
+        From Yiqiao: I am not sure if directly modifying `current_figure` is a good practice as it will modify the original object, which can lead to unexpected behavior. In Plotly, figures are mutable objects
+
+        """
+
+        fig = go.Figure()
+        add_background()
+
+        new_trajectory_names = list(
+            set(trajectory_names) - set(figure_name2trace.keys()))
+
+        print(f"New search values:\t{new_trajectory_names}")
+        for idx, value in enumerate(trajectory_names):
+
+            if args.dataset_name == "DGraphFin" and node2label.get(
+                    value) is None:
                 print(f"Node {value} is a background node, so we ignore it.")
                 continue
+
+            # Add a node from previous search
+
+            if value in figure_name2trace:
+                trace = figure_name2trace[value]
+                fig.add_trace(trace)
+
             # Add a node
-            if value in nodes:
+            elif value in nodes:
 
                 trace = node2trace[value]
 
@@ -200,18 +321,54 @@ def update_graph(search_values):
                     trace.line['color'] = label2colors[value][idx_node % 12]
                     fig.add_trace(trace)
 
-            # if search_value in lines:  # search_value is a line name
-            #     fig.add_trace(
-            #         go.Scatter(x=x, y=lines[search_value]['data'], mode='lines',
-            #                    name=search_value))
-            # elif search_value in labels_to_lines:  # search_value is a type
-            #     for line_name in labels_to_lines[search_value]:
-            #         fig.add_trace(go.Scatter(x=x, y=lines[line_name]['data'],
-            #                                  mode='lines', name=line_name))
+    elif action_name == 'add-background-node-name':
+        add_background()
+        # Text with <50 characters
+        displayed_text = np.array(
+            ['' for _ in
+             range(len(node2trace['background']['hovertext']))]).astype(
+            '<U50')
 
-    return fig
+        hover_text = np.array(list(node2trace['background']['hovertext']))
+
+        mask = np.isin(hover_text, background_node_names)
+
+        displayed_text[mask] = hover_text[mask]
+
+        node2trace['background']['text'] = tuple(displayed_text.tolist())
+
+        add_traces()
+
+
+    elif action_name == 'update-color-button':
+
+        figure_name2trace[selected_node].line['color'] = selected_color['hex']
+
+        add_traces()
+
+    return fig, trajectory_names
+
+
+@app.callback(
+    Output('node-selector', 'options'),
+    Input('trajectory-names-store', 'data')
+)
+def update_node_selector_options(trajectory_names):
+    if not trajectory_names:
+        return []  # return an empty list if trajectory_names is empty
+
+    # return a list of options for nodes in trajectory_names
+    return [{
+        'label': node,
+        'value': node
+    } for node in trajectory_names]
 
 
 if __name__ == "__main__":
     print(const.DYGETVIZ)
-    app.run_server(debug=True, port=8050)
+
+    """
+    `dev_tools_hot_reload`: disable hot-reloading. The code is not reloaded when the file is changed. Setting it to `True` will be very slow.
+    """
+    app.run_server(debug=True, dev_tools_hot_reload=False, use_reloader=False,
+                   port=8050)
