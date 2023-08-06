@@ -107,6 +107,9 @@ parser.add_argument('--num_sample_author', type=int, default=-1,
 
 
 
+parser.add_argument('--port', type=int, default=8050)
+
+
 parser.add_argument('--save_embed_every', type=int, default=10,
                     help="How many epochs to save embeddings for visualization?")
 

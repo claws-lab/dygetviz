@@ -365,10 +365,13 @@ def update_node_selector_options(trajectory_names):
 
 
 if __name__ == "__main__":
+
     print(const.DYGETVIZ)
+
+
 
     """
     `dev_tools_hot_reload`: disable hot-reloading. The code is not reloaded when the file is changed. Setting it to `True` will be very slow.
     """
     app.run_server(debug=True, dev_tools_hot_reload=False, use_reloader=False,
-                   port=8050)
+                   port=args.port)
