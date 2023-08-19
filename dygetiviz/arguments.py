@@ -7,6 +7,24 @@ from pprint import pprint
 import const
 from const import *
 
+if platform.system() == "Windows":
+    DEVICE = "cuda:0"
+
+elif platform.system() == "Linux":
+    DEVICE = "cuda:0"
+
+
+elif platform.system() == "Darwin":
+    DEVICE = "mps:0"
+
+
+else:
+    raise NotImplementedError("Unknown System")
+
+print(f"Your system: {platform.system()}. Default device: {DEVICE}")
+
+
+
 
 parser = argparse.ArgumentParser(description="Dynamic Graph Embedding Trajectory.")
 # Parameters for Analysis
@@ -26,7 +44,7 @@ parser.add_argument('--comment', type=str, default="",
 parser.add_argument('--data_dir', type=str, default="data",
                     help="Location to store all the data.")
 parser.add_argument('--dataset_name', type=str, help="")
-parser.add_argument('--device', type=str, default='cuda:0', help="Device to use. When using multi-gpu, this is the 'master' device where all operations are performed.")
+parser.add_argument('--device', type=str, default=DEVICE, help="Device to use. When using multi-gpu, this is the 'master' device where all operations are performed.")
 parser.add_argument('--device2', type=str, default='cpu',
                     help="For Multi-GPU training")
 

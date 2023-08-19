@@ -149,7 +149,7 @@ if __name__ == "__main__":
                                  :]
 
             cos_sim_mat = pairwise_cos_sim(z_projected_embeds,
-                                           z_reference_embeds)
+                                           z_reference_embeds, args.device)
 
             z_projected_coords_li = []
 

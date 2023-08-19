@@ -8,6 +8,7 @@ import dash
 import dash_bootstrap_components as dbc
 import dash_daq as daq
 import numpy as np
+import pandas as pd
 import plotly.graph_objects as go
 import plotly.io as pio
 from dash import dcc, html
@@ -64,14 +65,14 @@ else:
 
 options = []
 
-# Display a distinct color family for each type of nodes
+# If there are multiple node categories, we can display a distinct color family for each type of nodes
 if display_node_type:
     label2palette = dict(zip(list(label2node.keys()),
                              const_viz.pure_color_palettes[:len(label2node)]))
     label2colors = {label: get_colors(12, palette)[::-1] for label, palette in
                     label2palette.items()}
-
 else:
+    # Otherwise, we use a single color family for all nodes. But the colors are very distinct
     label2colors = {
         0: get_colors(10, "Spectral")
     }
@@ -157,21 +158,21 @@ app.layout = html.Div(
                     clearable=True
                 )
             ]),
-            dbc.Col([
-                dbc.Label("Add a background node.", className="form-label",
-                          id="note-background"),
-                dcc.Dropdown(
-                    id='add-background-node-name',
-                    options=options,
-                    value='',
-                    multi=True,
-                    placeholder="Select a background node",
-                    style={
-                        'width': '100%'
-                    },
-                    clearable=True
-                ),
-            ])
+            # dbc.Col([
+            #     dbc.Label("Add a background node.", className="form-label",
+            #               id="note-background"),
+            #     dcc.Dropdown(
+            #         id='add-background-node-name',
+            #         options=options,
+            #         value='',
+            #         multi=True,
+            #         placeholder="Select a background node",
+            #         style={
+            #             'width': '100%'
+            #         },
+            #         clearable=True
+            #     ),
+            # ])
         ]),
 
         dcc.Graph(id='dygetviz', style={
@@ -214,18 +215,22 @@ app.layout = html.Div(
     ])
 
 
+# List to keep track of current annotations
+annotations = []
+
 @app.callback(
     Output('dygetviz', 'figure'),
     Output('trajectory-names-store', 'data'),
     Input('add-trajectory', 'value'),
-    Input('add-background-node-name', 'value'),
+    # Input('add-background-node-name', 'value'),
     Input('update-color-button', 'n_clicks'),
+    Input('dygetviz', 'clickData'),
     State('node-selector', 'value'),
     State('color-picker', 'value'),
     State('dygetviz', 'figure'),
 
 )
-def update_graph(trajectory_names, background_node_names, do_update_color,
+def update_graph(trajectory_names, do_update_color, clickData,
                  selected_node, selected_color, current_figure):
     """
     
@@ -238,10 +243,16 @@ def update_graph(trajectory_names, background_node_names, do_update_color,
     :return: 
     """
 
+    global annotations
+
     ctx = dash.callback_context
     action_name = ctx.triggered[0]['prop_id'].split('.')[0]
     print(f"[Action]\t{action_name}")
     fig = go.Figure()
+
+    # background_node_names_and_coords = pd.DataFrame(
+    #
+    # )
 
     if current_figure is None:
         figure_name2trace = {}
@@ -276,7 +287,11 @@ def update_graph(trajectory_names, background_node_names, do_update_color,
         """
 
         fig = go.Figure()
+
+        del figure_name2trace['background']
+
         add_background()
+
 
         new_trajectory_names = list(
             set(trajectory_names) - set(figure_name2trace.keys()))
@@ -321,30 +336,82 @@ def update_graph(trajectory_names, background_node_names, do_update_color,
                     trace.line['color'] = label2colors[value][idx_node % 12]
                     fig.add_trace(trace)
 
-    elif action_name == 'add-background-node-name':
-        add_background()
-        # Text with <50 characters
-        displayed_text = np.array(
-            ['' for _ in
-             range(len(node2trace['background']['hovertext']))]).astype(
-            '<U50')
 
-        hover_text = np.array(list(node2trace['background']['hovertext']))
-
-        mask = np.isin(hover_text, background_node_names)
-
-        displayed_text[mask] = hover_text[mask]
-
-        node2trace['background']['text'] = tuple(displayed_text.tolist())
-
-        add_traces()
+    # elif action_name == 'add-background-node-name':
+    #
+    #     add_background()
+    #     # Text with <50 characters
+    #     displayed_text = np.array(
+    #         ['' for _ in
+    #          range(len(node2trace['background']['hovertext']))]).astype(
+    #         '<U50')
+    #
+    #     hover_text = np.array(list(node2trace['background']['hovertext']))
+    #
+    #     mask = np.isin(hover_text, background_node_names)
+    #
+    #     displayed_text[mask] = hover_text[mask]
+    #
+    #     node2trace['background']['text'] = tuple(displayed_text.tolist())
+    #
+    #     add_traces()
 
 
     elif action_name == 'update-color-button':
 
+        del figure_name2trace['background']
         figure_name2trace[selected_node].line['color'] = selected_color['hex']
 
         add_traces()
+
+    # Add annotations when user clicks on a node
+
+    elif action_name == 'dygetviz':
+        """
+        Upon clicking a node, if the node's display is on, we turn the display off. If its display is off, we turn the display on.
+        """
+
+        if clickData:
+            del figure_name2trace['background']
+            point_data = clickData['points'][0]
+            point_idx = point_data['pointIndex']
+
+
+            displayed_text = np.array(
+                list(node2trace['background']['text'])).astype(
+                '<U50')
+
+
+            displayed_text[point_idx] = node2trace['background']['hovertext'][point_idx] if not displayed_text[point_idx] else ''
+
+            node2trace['background']['text'] = tuple(displayed_text.tolist())
+
+            add_background()
+
+            add_traces()
+
+        #     point_name = df['name'].iloc[idx]
+        #
+        #     # Check if the point is already annotated
+        #     existing_annotation = next((a for a in annotations if
+        #                                 a['x'] == point_data['x'] and a['y'] ==
+        #                                 point_data['y']), None)
+        #
+        #     if existing_annotation:
+        #         # Remove existing annotation
+        #         annotations.remove(existing_annotation)
+        #     else:
+        #         # Add new annotation
+        #         annotations.append({
+        #             'x': point_data['x'],
+        #             'y': point_data['y'],
+        #             'xref': 'x',
+        #             'yref': 'y',
+        #             'text': point_name,
+        #             'showarrow': False
+        #         })
+        #
+        # fig.update_layout(annotations=annotations)
 
     return fig, trajectory_names
 

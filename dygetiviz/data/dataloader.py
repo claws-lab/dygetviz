@@ -36,7 +36,7 @@ def load_data() -> dict:
     idx_reference_snapshot = config["idx_reference_snapshot"]
 
 
-    # Optional arguments
+    # Optional argument
     # Whether to display node type (e.g. anomalous, normal)
     display_node_type = config.get("display_node_type", False)
     interpolation = config.get("interpolation", 0.2)
