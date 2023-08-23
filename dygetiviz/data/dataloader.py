@@ -35,7 +35,6 @@ def load_data() -> dict:
 
     idx_reference_snapshot = config["idx_reference_snapshot"]
 
-
     # Optional argument
     # Whether to display node type (e.g. anomalous, normal)
     display_node_type = config.get("display_node_type", False)
@@ -79,11 +78,21 @@ def load_data() -> dict:
     else:
         raise NotImplementedError
 
+    projected_nodes = np.array(projected_nodes).astype(str)
+    reference_nodes = np.array(reference_nodes).astype(str)
+
     node_presence = None
 
+    # Dataset-specific node profile
+    metadata_df = pd.DataFrame()
+
+    highlighted_nodes = []
+
     if args.dataset_name == "Chickenpox":
-        projected_nodes = np.array(
+        highlighted_nodes = np.array(
             ["BUDAPEST", "PEST", "BORSOD", "ZALA", "NOGRAD", "TOLNA", "VAS"])
+
+        projected_nodes = np.array(list(node2idx.keys()))
 
         # All nodes are present since the very beginning
         node_presence = np.ones((z.shape[0], z.shape[1]), dtype=bool)
@@ -96,6 +105,12 @@ def load_data() -> dict:
         ys = weekly_cases[reference_nodes].values
 
         snapshot_names = np.arange(0, 522, 1)
+
+        metadata_df = pd.DataFrame(index=np.arange(len(reference_nodes)))
+
+        metadata_df["node"] = reference_nodes
+        metadata_df["Country"] = "Hungary"
+
 
     elif args.dataset_name == "DGraphFin":
         plot_anomaly_labels = True
@@ -115,6 +130,16 @@ def load_data() -> dict:
                           66, 69, 70, 74, 75, 80, 82, 83, 84, 85, 86, 87, 90,
                           91, 92, 95, 96, 97,
                           99]
+
+        metadata_df = pd.read_excel(
+            osp.join("data", args.dataset_name, "metadata.xlsx"))
+        metadata_df = metadata_df.rename(columns={"entrez": "node"})
+        metadata_df = metadata_df.astype({"node": str})
+        node2idx = {str(k): v for k, v in node2idx.items()}
+
+        metadata_df = metadata_df.drop(
+            columns=["summary", "lineage", "gene_type"])
+
 
     elif args.dataset_name == "HistWords-EN-GNN":
         snapshot_names = np.arange(1800, 2000, 10).tolist()
@@ -136,7 +161,6 @@ def load_data() -> dict:
     except:
         label2node = {}
 
-
     if node_presence is None:
         try:
             node_presence = np.load(
@@ -149,9 +173,11 @@ def load_data() -> dict:
 
     return {
         "display_node_type": display_node_type,
+        "highlighted_nodes": highlighted_nodes,
         "idx_reference_snapshot": idx_reference_snapshot,
         "interpolation": interpolation,
         "label2node": label2node,
+        "metadata_df": metadata_df,
         "node2idx": node2idx,
         "node2label": node2label,
         "node_presence": node_presence,

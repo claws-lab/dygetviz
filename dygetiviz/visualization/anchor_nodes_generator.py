@@ -24,6 +24,8 @@ def get_dataframe_for_visualization(z, args, nodes_li, idx_reference_node, **kwa
     }
 
     perplexity = kwargs.pop("perplexity")
+    metadata_df = kwargs.pop("metadata_df")
+
     plot_anomaly_labels = kwargs.pop("plot_anomaly_labels")
 
     if "highlighted_nodes" in kwargs:
@@ -101,6 +103,8 @@ def get_dataframe_for_visualization(z, args, nodes_li, idx_reference_node, **kwa
         }
 
     df_visual = pd.concat([df_visual, df_visual.apply(process_row, axis=1, result_type="expand")], axis=1)
+
+    df_visual = pd.merge(df_visual, right=metadata_df, on="node")
 
     return {
         'df_visual': df_visual,

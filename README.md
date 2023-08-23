@@ -8,7 +8,7 @@ Our framework is DyGETViz, which stands for **Dynamic Graph Embedding Trajectori
 
 ```bash
 conda install scikit-learn pandas numpy matplotlib plotly
-conda install -c conda-forge dash dash-daq dash-bootstrap-components
+conda install -c conda-forge dash dash-daq dash-bootstrap-components biopython
 pip install umap
 ```
 

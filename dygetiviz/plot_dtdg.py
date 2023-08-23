@@ -24,7 +24,6 @@ from visualization.anchor_nodes_generator import get_dataframe_for_visualization
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-
 ########## General Parameters. May be overwritten by individual datasets ##########
 K = 10
 
@@ -36,8 +35,10 @@ if __name__ == "__main__":
     data = load_data()
 
     annotation = data.get("annotation", {})
+    highlighted_nodes = data["highlighted_nodes"]
     idx_reference_snapshot = data["idx_reference_snapshot"]
     interpolation = data["interpolation"]
+    metadata_df = data["metadata_df"]
     node_presence = data["node_presence"]
     node2idx = data["node2idx"]
     node2label = data["node2label"]
@@ -75,7 +76,8 @@ if __name__ == "__main__":
     outputs = get_dataframe_for_visualization(
         z[idx_reference_snapshot, idx_reference_node], args,
         nodes_li=reference_nodes, idx_reference_node=idx_reference_node,
-        plot_anomaly_labels=plot_anomaly_labels, perplexity=perplexity)
+        plot_anomaly_labels=plot_anomaly_labels, perplexity=perplexity,
+        metadata_df=metadata_df)
 
     for nn in num_nearest_neighbors:
         print("-" * 30)
@@ -96,7 +98,20 @@ if __name__ == "__main__":
 
         # Plot the anchor nodes in the background
 
-        fig_scatter = px.scatter(df_visual, x="x", y="y", size="node_size",
+        # df_visual.rename({"Country": 'custom_data_0'}, axis=1, inplace=True)
+
+        fields = metadata_df.columns.tolist()
+        fields.remove("node")
+        df_visual.rename(
+            {field: f'hover_data_{i}' for i, field in enumerate(fields)},
+            axis=1, inplace=True)
+
+        fig_scatter = px.scatter(df_visual, x="x", y="y",
+                                 hover_data={
+                                     f'hover_data_{i}': True for i, field in
+                                     enumerate(fields)
+                                 },
+                                 size="node_size",
                                  color='node_color', text="display_name",
                                  hover_name="node",
                                  title=f"{args.model}_{args.dataset_name}",
@@ -107,6 +122,28 @@ if __name__ == "__main__":
         fig_scatter.update_layout(plot_bgcolor='white',
                                   xaxis=dict(showgrid=False),
                                   yaxis=dict(showgrid=False))
+
+        # assert (fig_scatter.data[0].hovertext == metadata_df.node.values).all()
+
+        # hovertemplate = """
+        #     <b>%{hovertext}</b><br><br>
+        #     node_color=#B2B2B2<br>
+        #     x=%{x}<br>
+        #     y=%{y}<br>
+        #     node_size=%{marker.size}<br>
+        #     display_name=%{text}<br>
+        #     <extra></extra>
+        #     """
+
+        hovertemplate = '<b>%{hovertext}</b><br><br>node_color=#B2B2B2<br>x=%{x}<br>y=%{y}<br>node_size=%{marker.size}<br>display_name=%{text}<br>'
+
+        for i, field in enumerate(fields):
+            # hovertemplate += f"{field}=" + "%{" + f"hover_data_{i}" + "}<br>"
+            hovertemplate += f"{field}=" + "%{" + f"customdata[{i}]" + "}<br>"
+
+        hovertemplate += "<extra></extra>"
+
+        fig_scatter.data[0].hovertemplate = hovertemplate
 
         path_coords = osp.join(args.visual_dir, f"{visualization_name}.xlsx")
 
@@ -145,8 +182,9 @@ if __name__ == "__main__":
             except:
                 raise ValueError(f"Snapshot {idx_snapshot} does not exist")
 
-            z_projected_embeds: np.ndarray = z[idx_snapshot, idx_projected_nodes,
-                                 :]
+            z_projected_embeds: np.ndarray = z[idx_snapshot,
+                                             idx_projected_nodes,
+                                             :]
 
             cos_sim_mat = pairwise_cos_sim(z_projected_embeds,
                                            z_reference_embeds, args.device)
@@ -199,7 +237,6 @@ if __name__ == "__main__":
 
         colors = get_colors(len(projected_nodes))
         data = []
-
 
         # Initialize the figure with the background dots
         fig = go.Figure()
@@ -279,10 +316,10 @@ if __name__ == "__main__":
 
         mode = 'a' if osp.exists(path_coords) else 'w'
 
-        with pd.ExcelWriter(path_coords, engine='openpyxl', mode=mode, if_sheet_exists='replace') as writer:
+        with pd.ExcelWriter(path_coords, engine='openpyxl', mode=mode,
+                            if_sheet_exists='replace') as writer:
             for sheet, df in dataframes.items():
                 df.to_excel(writer, sheet_name=sheet, index=False)
-
 
         # fig = go.Figure(data=data + fig_scatter.data)
 
@@ -301,5 +338,5 @@ if __name__ == "__main__":
         To load the plot, use:
         fig = pio.read_json(osp.join(args.visual_dir, f"Trajectory_{visualization_name}.json"))
         """
-        pio.write_json(fig, osp.join(args.visual_dir, f"Trajectory_{visualization_name}.json"))
-
+        pio.write_json(fig, osp.join(args.visual_dir,
+                                     f"Trajectory_{visualization_name}.json"))

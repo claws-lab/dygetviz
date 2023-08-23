@@ -34,6 +34,7 @@ node_presence: np.ndarray = data["node_presence"]
 node2idx: dict = data["node2idx"]
 node2label: dict = data["node2label"]
 label2node: dict = data["label2node"]
+metadata_df: dict = data["metadata_df"]
 num_nearest_neighbors: int = data["num_nearest_neighbors"]
 perplexity: int = data["perplexity"]
 plot_anomaly_labels: bool = data["plot_anomaly_labels"]
@@ -41,6 +42,8 @@ projected_nodes: np.ndarray = data["projected_nodes"]
 reference_nodes: np.ndarray = data["reference_nodes"]
 snapshot_names: list = data["snapshot_names"]
 z = data["z"]
+
+HOVERTEMPLATE = '<b>%{hovertext}</b><br><br>node_color=#f88e52<br>x=%{x}<br>y=%{y}<br>display_name=%{text}<br>short_description=%{customdata}<extra></extra>'
 
 idx2node = {idx: node for node, idx in node2idx.items()}
 
@@ -215,6 +218,20 @@ app.layout = html.Div(
     ])
 
 
+def generate_node_profile(profile: pd.DataFrame):
+    def f(x):
+        ret = "<ul>"
+        for field in x.index:
+            ret += f"<li>{field}: {x[field]}</li>"
+        ret += "</ul>"
+        return ret
+
+    profile['description'] = profile.apply(f, axis=1)
+    return profile
+
+
+
+
 # List to keep track of current annotations
 annotations = []
 
@@ -248,11 +265,10 @@ def update_graph(trajectory_names, do_update_color, clickData,
     ctx = dash.callback_context
     action_name = ctx.triggered[0]['prop_id'].split('.')[0]
     print(f"[Action]\t{action_name}")
-    fig = go.Figure()
 
-    # background_node_names_and_coords = pd.DataFrame(
-    #
-    # )
+    # This is the template for displaying metadata when hovering over a node
+
+    fig = go.Figure()
 
     if current_figure is None:
         figure_name2trace = {}
@@ -264,7 +280,9 @@ def update_graph(trajectory_names, do_update_color, clickData,
 
     def add_background():
         if figure_name2trace.get("background") is None:
-            fig.add_trace(node2trace['background'])
+            trace = node2trace['background']
+            trace.hovertemplate = HOVERTEMPLATE
+            fig.add_trace(trace)
 
     def add_traces():
         for name, trace in figure_name2trace.items():
@@ -287,6 +305,9 @@ def update_graph(trajectory_names, do_update_color, clickData,
         """
 
         fig = go.Figure()
+
+
+
 
         del figure_name2trace['background']
 

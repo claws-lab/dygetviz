@@ -53,3 +53,4 @@ pycache/
 *.out
 *.npy
 *.graphml
+/dygetiviz/demo/
