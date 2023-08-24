@@ -4,7 +4,7 @@
   "embedding_dim": 128,
   "interpolation": 0.2,
   "idx_reference_snapshot": 30,
-  "num_nearest_neighbors": [3, 5, 10, 20, 50],
+  "num_nearest_neighbors": [20],
   "projected_nodes": [1022, 6285, 4683, 6777, 7345, 3148, 10220, 6753, 4601, 3481, 51444, 9517, 51205, 9360, 1068, 9229, 1017, 1981, 9218, 55024],
   "perplexity": 20,
   "reference_nodes": "reference_nodes.json"

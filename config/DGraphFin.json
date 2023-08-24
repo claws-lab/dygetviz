@@ -3,6 +3,7 @@
   "idx_reference_snapshot": 16,
   "interpolation": 0.2,
   "model_name": "GConvGRU",
+  "num_nearest_neighbors": [5],
   "perplexity": 20,
   "display_node_type": true,
   "reference_nodes": "reference_nodes.json",

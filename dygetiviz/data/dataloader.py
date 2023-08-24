@@ -84,7 +84,7 @@ def load_data() -> dict:
     node_presence = None
 
     # Dataset-specific node profile
-    metadata_df = pd.DataFrame()
+    metadata_df = None # pd.DataFrame()
 
     highlighted_nodes = []
 
@@ -104,7 +104,7 @@ def load_data() -> dict:
 
         ys = weekly_cases[reference_nodes].values
 
-        snapshot_names = np.arange(0, 522, 1)
+        snapshot_names = np.arange(0, 100, 1)
 
         metadata_df = pd.DataFrame(index=np.arange(len(reference_nodes)))
 

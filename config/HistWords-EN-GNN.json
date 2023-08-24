@@ -1,8 +1,8 @@
 {
-  "model_name": "GConvGRU",
   "embedding_dim": 128,
-  "interpolation": 0.2,
   "idx_reference_snapshot": 0,
+  "interpolation": 0.2,
+  "model_name": "GConvGRU",
   "num_nearest_neighbors": [5, 10, 20, 50],
   "perplexity": 20,
   "projected_nodes": "projected_nodes.json",

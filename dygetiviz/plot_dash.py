@@ -13,6 +13,7 @@ import plotly.graph_objects as go
 import plotly.io as pio
 from dash import dcc, html
 from dash.dependencies import Input, Output, State
+from tqdm import tqdm
 
 import const
 import const_viz
@@ -43,13 +44,14 @@ reference_nodes: np.ndarray = data["reference_nodes"]
 snapshot_names: list = data["snapshot_names"]
 z = data["z"]
 
-HOVERTEMPLATE = '<b>%{hovertext}</b><br><br>node_color=#f88e52<br>x=%{x}<br>y=%{y}<br>display_name=%{text}<br>short_description=%{customdata}<extra></extra>'
+projected_and_reference_nodes = set(projected_nodes) | set(reference_nodes)
+
+
 
 idx2node = {idx: node for node, idx in node2idx.items()}
 
-nn = 5
 
-visualization_name = f"{args.dataset_name}_{args.model}_{args.visualization_model}_perplex{perplexity}_nn{nn}_interpolation{interpolation}_snapshot{idx_reference_snapshot}"
+visualization_name = f"{args.dataset_name}_{args.model}_{args.visualization_model}_perplex{perplexity}_nn{data['num_nearest_neighbors'][0]}_interpolation{interpolation}_snapshot{idx_reference_snapshot}"
 
 print("Reading visualization cache...")
 fig_cached = pio.read_json(
@@ -69,11 +71,12 @@ else:
 options = []
 
 # If there are multiple node categories, we can display a distinct color family for each type of nodes
+# NOTE: We specifically require that the first color palette is Blue (for normal nodes) and the second one is Red (for anomalous nodes)
 if display_node_type:
-    label2palette = dict(zip(list(label2node.keys()),
+    labels = sorted(list(label2node.keys()))
+    label2palette = dict(zip(labels,
                              const_viz.pure_color_palettes[:len(label2node)]))
-    label2colors = {label: get_colors(12, palette)[::-1] for label, palette in
-                    label2palette.items()}
+    label2colors = {label: get_colors(12, label2palette[label])[::-1] for label in labels}
 else:
     # Otherwise, we use a single color family for all nodes. But the colors are very distinct
     label2colors = {
@@ -105,6 +108,10 @@ print("Adding nodes to the dropdown menu ...")
 options_nodes = []
 
 for node, idx in node2idx.items():
+    # Only add trajectories of projected or reference nodes
+    if not node in projected_and_reference_nodes:
+        continue
+
 
     # For the DGraphFin dataset, the background nodes (label = 2 or 3) are not meaningful due to insufficient information. So we do not visualize them
     if display_node_type and args.dataset_name in [
@@ -144,7 +151,7 @@ app.title = f"DyGetViz | {args.dataset_name}"
 
 app.layout = html.Div(
     [
-
+        html.H1(f"Dataset: {args.dataset_name}", className="text-center mb-4"),
         dbc.Row([
             dbc.Col([
                 dbc.Label("Add a trajectory:", className="form-label",
@@ -161,21 +168,7 @@ app.layout = html.Div(
                     clearable=True
                 )
             ]),
-            # dbc.Col([
-            #     dbc.Label("Add a background node.", className="form-label",
-            #               id="note-background"),
-            #     dcc.Dropdown(
-            #         id='add-background-node-name',
-            #         options=options,
-            #         value='',
-            #         multi=True,
-            #         placeholder="Select a background node",
-            #         style={
-            #             'width': '100%'
-            #         },
-            #         clearable=True
-            #     ),
-            # ])
+
         ]),
 
         dcc.Graph(id='dygetviz', style={
@@ -185,36 +178,41 @@ app.layout = html.Div(
         }),
         html.Div("✨: a category. \n\"(1)\": a node label.", id="note"),
 
-        dbc.Row([
-            dbc.Col([
-                html.Label("Change Trajectory Color:"),
-                # Dropdown for selecting a node
-                dcc.Dropdown(
-                    id='node-selector',
-                    options=[],
-                    value=nodes[0],
-                    style={
-                        'width': '50%'
-                    },
-                ),
+        # Yiqiao (2023.8.24): Now we do not consider the color picker since it will give the user too much freedom
 
-                # Store the nodes in `trajectory_names`
-                dcc.Store(
-                    id='trajectory-names-store',
-                    data=[]
-                ),
+        # dbc.Row([
+        #     dbc.Col([
+        #         html.Label("Change Trajectory Color:"),
+        #         # Dropdown for selecting a node
+        #         dcc.Dropdown(
+        #             id='node-selector',
+        #             options=[],
+        #             value=nodes[0],
+        #             style={
+        #                 'width': '50%'
+        #             },
+        #         ),
+        #
+        #         # Store the nodes in `trajectory_names`
+        #         dcc.Store(
+        #             id='trajectory-names-store',
+        #             data=[]
+        #         ),
+        #
+        #         daq.ColorPicker(
+        #             id='color-picker',
+        #             label='Color Picker',
+        #             size=328,
+        #             value=dict(hex='#119DFF')
+        #         ),
+        #         html.Div(id='color-picker-output-1'),
+        #         html.Button('Update Node Color', id='update-color-button',
+        #                     n_clicks=0, className="me-2"),
+        #     ])
+        # ]),
 
-                daq.ColorPicker(
-                    id='color-picker',
-                    label='Color Picker',
-                    size=328,
-                    value=dict(hex='#119DFF')
-                ),
-                html.Div(id='color-picker-output-1'),
-                html.Button('Update Node Color', id='update-color-button',
-                            n_clicks=0, className="me-2"),
-            ])
-        ]),
+        html.H3(f"Introduction of the dataset / panel"),
+        html.P("TODO"),
     ])
 
 
@@ -237,18 +235,19 @@ annotations = []
 
 @app.callback(
     Output('dygetviz', 'figure'),
-    Output('trajectory-names-store', 'data'),
+    # Output('trajectory-names-store', 'data'),
     Input('add-trajectory', 'value'),
-    # Input('add-background-node-name', 'value'),
-    Input('update-color-button', 'n_clicks'),
     Input('dygetviz', 'clickData'),
-    State('node-selector', 'value'),
-    State('color-picker', 'value'),
     State('dygetviz', 'figure'),
+    # Input('update-color-button', 'n_clicks'),
+    # State('node-selector', 'value'),
+    # State('color-picker', 'value'),
 
 )
-def update_graph(trajectory_names, do_update_color, clickData,
-                 selected_node, selected_color, current_figure):
+def update_graph(trajectory_names, clickData, current_figure,
+                 # do_update_color, selected_node, selected_color,
+    ):
+
     """
     
     :param trajectory_names: Names of the trajectories to be added into the visualization
@@ -281,7 +280,7 @@ def update_graph(trajectory_names, do_update_color, clickData,
     def add_background():
         if figure_name2trace.get("background") is None:
             trace = node2trace['background']
-            trace.hovertemplate = HOVERTEMPLATE
+            # trace.hovertemplate = HOVERTEMPLATE
             fig.add_trace(trace)
 
     def add_traces():
@@ -318,7 +317,7 @@ def update_graph(trajectory_names, do_update_color, clickData,
             set(trajectory_names) - set(figure_name2trace.keys()))
 
         print(f"New search values:\t{new_trajectory_names}")
-        for idx, value in enumerate(trajectory_names):
+        for idx, value in enumerate(tqdm(trajectory_names, desc="Add Trajectories")):
 
             if args.dataset_name == "DGraphFin" and node2label.get(
                     value) is None:
@@ -358,39 +357,19 @@ def update_graph(trajectory_names, do_update_color, clickData,
                     fig.add_trace(trace)
 
 
-    # elif action_name == 'add-background-node-name':
-    #
-    #     add_background()
-    #     # Text with <50 characters
-    #     displayed_text = np.array(
-    #         ['' for _ in
-    #          range(len(node2trace['background']['hovertext']))]).astype(
-    #         '<U50')
-    #
-    #     hover_text = np.array(list(node2trace['background']['hovertext']))
-    #
-    #     mask = np.isin(hover_text, background_node_names)
-    #
-    #     displayed_text[mask] = hover_text[mask]
-    #
-    #     node2trace['background']['text'] = tuple(displayed_text.tolist())
+    # elif action_name == 'update-color-button':
+    #     # Update the color of the selected trajectory
+    #     del figure_name2trace['background']
+    #     figure_name2trace[selected_node].line['color'] = selected_color['hex']
     #
     #     add_traces()
 
 
-    elif action_name == 'update-color-button':
-
-        del figure_name2trace['background']
-        figure_name2trace[selected_node].line['color'] = selected_color['hex']
-
-        add_traces()
-
-    # Add annotations when user clicks on a node
-
     elif action_name == 'dygetviz':
+        # Add annotations when user clicks on a node
         """
-        Upon clicking a node, if the node's display is on, we turn the display off. If its display is off, we turn the display on.
-        """
+                Upon clicking a node, if the node's display is on, we turn the display off. If its display is off, we turn the display on.
+                """
 
         if clickData:
             del figure_name2trace['background']

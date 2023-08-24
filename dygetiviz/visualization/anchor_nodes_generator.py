@@ -104,7 +104,9 @@ def get_dataframe_for_visualization(z, args, nodes_li, idx_reference_node, **kwa
 
     df_visual = pd.concat([df_visual, df_visual.apply(process_row, axis=1, result_type="expand")], axis=1)
 
-    df_visual = pd.merge(df_visual, right=metadata_df, on="node")
+    if metadata_df is not None:
+
+        df_visual = pd.merge(df_visual, right=metadata_df, on="node")
 
     return {
         'df_visual': df_visual,

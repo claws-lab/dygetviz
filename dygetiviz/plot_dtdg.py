@@ -3,6 +3,7 @@
 Created 2023.7
 """
 import os.path as osp
+import pickle
 import traceback
 import warnings
 from collections import defaultdict
@@ -12,6 +13,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import plotly.io as pio
+from tqdm import tqdm
 
 import const
 from arguments import args
@@ -19,7 +21,7 @@ from const_viz import *
 from data.dataloader import load_data
 from utils.utils_misc import project_setup
 from utils.utils_training import pairwise_cos_sim
-from utils.utils_visual import get_colors
+from utils.utils_visual import get_colors, get_hovertemplate
 from visualization.anchor_nodes_generator import get_dataframe_for_visualization
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -49,6 +51,12 @@ if __name__ == "__main__":
     reference_nodes = data["reference_nodes"]
     snapshot_names = data["snapshot_names"]
     z = data["z"]
+
+    # Added this because when we generate the visualization cache, we want to include all trajectories
+    projected_nodes = list(projected_nodes) + list(
+        set(reference_nodes) - set(projected_nodes))
+
+    projected_nodes = np.array(projected_nodes)
 
     idx2node = {idx: node for node, idx in node2idx.items()}
 
@@ -100,11 +108,18 @@ if __name__ == "__main__":
 
         # df_visual.rename({"Country": 'custom_data_0'}, axis=1, inplace=True)
 
-        fields = metadata_df.columns.tolist()
-        fields.remove("node")
-        df_visual.rename(
-            {field: f'hover_data_{i}' for i, field in enumerate(fields)},
-            axis=1, inplace=True)
+        if metadata_df is not None:
+
+            fields = metadata_df.columns.tolist()
+            fields.remove("node")
+
+            df_visual.rename(
+                {field: f'hover_data_{i}' for i, field in enumerate(fields)},
+                axis=1, inplace=True)
+
+
+        else:
+            fields = []
 
         fig_scatter = px.scatter(df_visual, x="x", y="y",
                                  hover_data={
@@ -118,32 +133,18 @@ if __name__ == "__main__":
                                  log_x=False,
                                  opacity=0.7)
 
+        # metadata_df contains the node metadata to be displayed when we hover over the nodes
+
         # Set the background color to white, and remove x/y-axis grid
         fig_scatter.update_layout(plot_bgcolor='white',
                                   xaxis=dict(showgrid=False),
                                   yaxis=dict(showgrid=False))
 
-        # assert (fig_scatter.data[0].hovertext == metadata_df.node.values).all()
+        if metadata_df is not None:
+            # assert (fig_scatter.data[0].hovertext == metadata_df.node.values).all()
 
-        # hovertemplate = """
-        #     <b>%{hovertext}</b><br><br>
-        #     node_color=#B2B2B2<br>
-        #     x=%{x}<br>
-        #     y=%{y}<br>
-        #     node_size=%{marker.size}<br>
-        #     display_name=%{text}<br>
-        #     <extra></extra>
-        #     """
-
-        hovertemplate = '<b>%{hovertext}</b><br><br>node_color=#B2B2B2<br>x=%{x}<br>y=%{y}<br>node_size=%{marker.size}<br>display_name=%{text}<br>'
-
-        for i, field in enumerate(fields):
-            # hovertemplate += f"{field}=" + "%{" + f"hover_data_{i}" + "}<br>"
-            hovertemplate += f"{field}=" + "%{" + f"customdata[{i}]" + "}<br>"
-
-        hovertemplate += "<extra></extra>"
-
-        fig_scatter.data[0].hovertemplate = hovertemplate
+            fig_scatter.data[0].hovertemplate = get_hovertemplate(
+                fields_in_customdata=fields, is_trajectory=False)
 
         path_coords = osp.join(args.visual_dir, f"{visualization_name}.xlsx")
 
@@ -193,10 +194,11 @@ if __name__ == "__main__":
 
             embedding_test: np.ndarray = np.zeros((len(projected_nodes), 2))
 
-            for i, node in enumerate(projected_nodes):
+            for i, node in enumerate(
+                    tqdm(projected_nodes, desc=f"Snapshot {idx_snapshot}")):
                 cos_sim_topk_closest_reference_nodes, idx_topk_closest_reference_nodes = \
                     cos_sim_mat[i].topk(nn + 1,
-                                        largest=True)
+                                        largest=True, )
 
                 possible_idx_reference_node = reference_node2idx.get(node, -1)
                 # When calculating the nearest neighbor of `node`, we should exclude `node` itself
@@ -246,7 +248,8 @@ if __name__ == "__main__":
 
         dataframes = {}
 
-        for idx_node, node in enumerate(projected_nodes):
+        for idx_node, node in enumerate(
+                tqdm(projected_nodes, desc=f"Adding trajectories")):
             num_total_snapshots = len(
                 highlighted_idx_node_coords[const.IDX_SNAPSHOT][node])
 
@@ -266,6 +269,14 @@ if __name__ == "__main__":
                                      node]],
                 'node_color': [colors[idx_node]] * (num_total_snapshots),
             }, index=np.arange(num_total_snapshots))
+            df['node'] = node
+
+            if metadata_df is not None:
+                df = pd.merge(df, right=metadata_df, on="node")
+                df.rename(
+                    {field: f'hover_data_{i}' for i, field in
+                     enumerate(fields)},
+                    axis=1, inplace=True)
 
             dataframes[str(node)] = df
 
@@ -291,19 +302,32 @@ if __name__ == "__main__":
 
             fig_line = px.line(df, x='x', y='y', hover_name='display_name',
                                text="display_name", color='node_color',
-                               labels={str(node)})
+                               labels=df["node"],
+                               hover_data={
+                                   f'hover_data_{i}': True for i, field in
+                                   enumerate(fields)
+                               })
+
+            if len(fig_line.data) == 0:
+                continue
+
 
             try:
+
                 fig_line.data[0].line.color = colors[idx_node]
+                fig_line.data[0].line.width = 5
+                fig_line.data[0].marker.size = 20
+
+                # Change the displayed name in the legend
+                fig_line.data[0]['name'] = projected_node_name
+
+                fig_line.data[0].hovertemplate = get_hovertemplate(
+                    fields_in_customdata=fields, is_trajectory=True)
 
             except:
                 traceback.print_exc()
 
-            fig_line.data[0].line.width = 5
-            fig_line.data[0].marker.size = 20
 
-            # Change the displayed name in the legend
-            fig_line.data[0]['name'] = projected_node_name
 
             # data += fig_line.data
 
@@ -316,10 +340,17 @@ if __name__ == "__main__":
 
         mode = 'a' if osp.exists(path_coords) else 'w'
 
-        with pd.ExcelWriter(path_coords, engine='openpyxl', mode=mode,
-                            if_sheet_exists='replace') as writer:
-            for sheet, df in dataframes.items():
-                df.to_excel(writer, sheet_name=sheet, index=False)
+        # Too large to write to Excel
+        if len(dataframes) >= 100:
+            with open(osp.join(args.visual_dir, f"{visualization_name}.pkl"),
+                      'wb') as f:
+                pickle.dump(dataframes, f)
+
+        else:
+            with pd.ExcelWriter(path_coords, engine='openpyxl', mode=mode,
+                                if_sheet_exists='replace') as writer:
+                for sheet, df in dataframes.items():
+                    df.to_excel(writer, sheet_name=sheet, index=False)
 
         # fig = go.Figure(data=data + fig_scatter.data)
 
