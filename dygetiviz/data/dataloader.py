@@ -13,8 +13,9 @@ warnings.simplefilter(action='ignore', category=NumbaDeprecationWarning)
 
 
 def load_data() -> dict:
-    """
 
+
+    """
     :return: dict that contains the following fields
         z: np.ndarray of shape (num_nodes, num_timesteps, num_dims): node embeddings
         ys: np.ndarray of shape (num_nodes, num_timesteps): node labels
@@ -41,6 +42,9 @@ def load_data() -> dict:
     interpolation = config.get("interpolation", 0.2)
     num_nearest_neighbors = config.get("num_nearest_neighbors",
                                        [3, 5, 10, 20, 50])
+
+    snapshot_names = pd.read_csv(osp.join("data", args.dataset_name, f"snapshot_names.csv"))
+    snapshot_names = snapshot_names['snapshot'].values
 
     plot_anomaly_labels = False
 
@@ -88,6 +92,8 @@ def load_data() -> dict:
 
     highlighted_nodes = []
 
+
+
     if args.dataset_name == "Chickenpox":
         highlighted_nodes = np.array(
             ["BUDAPEST", "PEST", "BORSOD", "ZALA", "NOGRAD", "TOLNA", "VAS"])
@@ -99,12 +105,13 @@ def load_data() -> dict:
 
         reference_nodes = np.array(list(node2idx.keys()))
 
+        # Only plot the first 100 snapshots, otherwise the plot is too crowded
+        snapshot_names = snapshot_names[0:100]
+
         weekly_cases = pd.read_csv(
             osp.join("data", args.dataset_name, "hungary_chickenpox.csv"))
 
         ys = weekly_cases[reference_nodes].values
-
-        snapshot_names = np.arange(0, 100, 1)
 
         metadata_df = pd.DataFrame(index=np.arange(len(reference_nodes)))
 
@@ -116,20 +123,9 @@ def load_data() -> dict:
         plot_anomaly_labels = True
         # Eliminate background nodes
         node2label = {n: l for n, l in node2label.items() if l in [0, 1]}
-        snapshot_names = np.arange(17)
-
-
-    elif args.dataset_name == "Reddit":
-        # 2018-01, ..., 2022-12
-        snapshot_names = const.dataset_names_60_months
 
 
     elif args.dataset_name == "BMCBioinformatics2021":
-        snapshot_names = [20, 21, 22, 26, 28, 30, 33, 34, 36, 37, 40, 42, 44,
-                          45, 47, 48, 52, 64,
-                          66, 69, 70, 74, 75, 80, 82, 83, 84, 85, 86, 87, 90,
-                          91, 92, 95, 96, 97,
-                          99]
 
         metadata_df = pd.read_excel(
             osp.join("data", args.dataset_name, "metadata.xlsx"))
@@ -141,13 +137,6 @@ def load_data() -> dict:
             columns=["summary", "lineage", "gene_type"])
 
 
-    elif args.dataset_name == "HistWords-EN-GNN":
-        snapshot_names = np.arange(1800, 2000, 10).tolist()
-
-    else:
-        # ys = np.load(
-        #     osp.join("data", args.dataset_name, f"{args.dataset_name}_ys.npy"))
-        pass
 
     try:
         label2node = {}

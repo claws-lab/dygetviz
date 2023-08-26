@@ -44,7 +44,6 @@ reference_nodes: np.ndarray = data["reference_nodes"]
 snapshot_names: list = data["snapshot_names"]
 z = data["z"]
 
-projected_and_reference_nodes = set(projected_nodes) | set(reference_nodes)
 
 
 
@@ -77,6 +76,8 @@ if display_node_type:
     label2palette = dict(zip(labels,
                              const_viz.pure_color_palettes[:len(label2node)]))
     label2colors = {label: get_colors(12, label2palette[label])[::-1] for label in labels}
+
+
 else:
     # Otherwise, we use a single color family for all nodes. But the colors are very distinct
     label2colors = {
@@ -109,7 +110,7 @@ options_nodes = []
 
 for node, idx in node2idx.items():
     # Only add trajectories of projected or reference nodes
-    if not node in projected_and_reference_nodes:
+    if not node in projected_nodes:
         continue
 
 
@@ -178,6 +179,11 @@ app.layout = html.Div(
         }),
         html.Div("✨: a category. \n\"(1)\": a node label.", id="note"),
 
+        # Store the nodes in `trajectory_names`
+        dcc.Store(
+            id='trajectory-names-store',
+            data=[]),
+
         # Yiqiao (2023.8.24): Now we do not consider the color picker since it will give the user too much freedom
 
         # dbc.Row([
@@ -235,7 +241,7 @@ annotations = []
 
 @app.callback(
     Output('dygetviz', 'figure'),
-    # Output('trajectory-names-store', 'data'),
+    Output('trajectory-names-store', 'data'),
     Input('add-trajectory', 'value'),
     Input('dygetviz', 'clickData'),
     State('dygetviz', 'figure'),
@@ -261,6 +267,9 @@ def update_graph(trajectory_names, clickData, current_figure,
 
     global annotations
 
+    if not trajectory_names:
+        trajectory_names = []
+
     ctx = dash.callback_context
     action_name = ctx.triggered[0]['prop_id'].split('.')[0]
     print(f"[Action]\t{action_name}")
@@ -268,6 +277,21 @@ def update_graph(trajectory_names, clickData, current_figure,
     # This is the template for displaying metadata when hovering over a node
 
     fig = go.Figure()
+    fig.update_layout(
+        plot_bgcolor='white',
+        xaxis=dict(
+            showgrid=False,
+            zeroline=False,
+            showline=False,
+            showticklabels=False
+        ),
+        yaxis=dict(
+            showgrid=False,
+            zeroline=False,
+            showline=False,
+            showticklabels=False
+        )
+    )
 
     if current_figure is None:
         figure_name2trace = {}
@@ -304,7 +328,21 @@ def update_graph(trajectory_names, clickData, current_figure,
         """
 
         fig = go.Figure()
-
+        fig.update_layout(
+            plot_bgcolor='white',
+            xaxis=dict(
+                showgrid=False,
+                zeroline=False,
+                showline=False,
+                showticklabels=False
+            ),
+            yaxis=dict(
+                showgrid=False,
+                zeroline=False,
+                showline=False,
+                showticklabels=False
+            )
+        )
 
 
 
@@ -416,19 +454,26 @@ def update_graph(trajectory_names, clickData, current_figure,
     return fig, trajectory_names
 
 
-@app.callback(
-    Output('node-selector', 'options'),
-    Input('trajectory-names-store', 'data')
-)
-def update_node_selector_options(trajectory_names):
-    if not trajectory_names:
-        return []  # return an empty list if trajectory_names is empty
 
-    # return a list of options for nodes in trajectory_names
-    return [{
-        'label': node,
-        'value': node
-    } for node in trajectory_names]
+# @app.callback(
+#     Output('node-selector', 'options'),
+#     Input('trajectory-names-store', 'data')
+# )
+# def update_node_selector_options(trajectory_names):
+#     """
+#     Archived function
+#     Adjust the colors of existing trajectories
+#
+#     :param trajectory_names:
+#     """
+#     if not trajectory_names:
+#         return []  # return an empty list if trajectory_names is empty
+#
+#     # return a list of options for nodes in trajectory_names
+#     return [{
+#         'label': node,
+#         'value': node
+#     } for node in trajectory_names]
 
 
 if __name__ == "__main__":

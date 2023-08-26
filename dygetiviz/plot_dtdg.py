@@ -52,9 +52,9 @@ if __name__ == "__main__":
     snapshot_names = data["snapshot_names"]
     z = data["z"]
 
-    # Added this because when we generate the visualization cache, we want to include all trajectories
-    projected_nodes = list(projected_nodes) + list(
-        set(reference_nodes) - set(projected_nodes))
+    # Enable this line if we want to include all trajectories when we generate the visualization cache (*.json) files.
+    # NOTE: this will make the visualization cache files very large and dataloading very slow.
+    # projected_nodes = list(projected_nodes) + list(set(reference_nodes) - set(projected_nodes))
 
     projected_nodes = np.array(projected_nodes)
 
@@ -257,16 +257,28 @@ if __name__ == "__main__":
                     highlighted_idx_node_coords['y'][node]) < 1:
                 raise ValueError(f"{node} has no coordinates")
 
+            hover_name = [f"Node: {node} | Snapshot: {snap}" for x, snap in
+                                 zip(highlighted_idx_node_coords[
+                                     const.IDX_SNAPSHOT][
+                                     node], snapshot_names)]
+
+            if len(snapshot_names) <= 10:
+                display_name = hover_name
+            elif len(snapshot_name) <= 20:
+                display_name = [name if i % 3 == 0 else "" for i, name in enumerate(hover_name)]
+            else:
+                display_name = [name if i % 10 == 0 else "" for i, name in enumerate(hover_name)]
+
+
+
             df = pd.DataFrame({
                 'x': highlighted_idx_node_coords['x'][node],
                 'y': highlighted_idx_node_coords['y'][node],
                 const.IDX_SNAPSHOT:
                     highlighted_idx_node_coords[const.IDX_SNAPSHOT][
                         node],
-                'display_name': [f"{node}-{x}" for x in
-                                 highlighted_idx_node_coords[
-                                     const.IDX_SNAPSHOT][
-                                     node]],
+                'display_name': display_name,
+                "hover_name": hover_name,
                 'node_color': [colors[idx_node]] * (num_total_snapshots),
             }, index=np.arange(num_total_snapshots))
             df['node'] = node
@@ -300,7 +312,7 @@ if __name__ == "__main__":
             else:
                 projected_node_name = str(node)
 
-            fig_line = px.line(df, x='x', y='y', hover_name='display_name',
+            fig_line = px.line(df, x='x', y='y', hover_name='hover_name',
                                text="display_name", color='node_color',
                                labels=df["node"],
                                hover_data={
