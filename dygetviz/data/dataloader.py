@@ -127,6 +127,8 @@ def load_data() -> dict:
 
     elif args.dataset_name == "BMCBioinformatics2021":
 
+        plot_anomaly_labels = True
+
         metadata_df = pd.read_excel(
             osp.join("data", args.dataset_name, "metadata.xlsx"))
         metadata_df = metadata_df.rename(columns={"entrez": "node"})

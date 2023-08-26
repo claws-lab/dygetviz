@@ -84,7 +84,9 @@ if __name__ == "__main__":
     outputs = get_dataframe_for_visualization(
         z[idx_reference_snapshot, idx_reference_node], args,
         nodes_li=reference_nodes, idx_reference_node=idx_reference_node,
-        plot_anomaly_labels=plot_anomaly_labels, perplexity=perplexity,
+        plot_anomaly_labels=plot_anomaly_labels,
+        node2label=node2label,
+        perplexity=perplexity,
         metadata_df=metadata_df)
 
     for nn in num_nearest_neighbors:
@@ -262,12 +264,17 @@ if __name__ == "__main__":
                                      const.IDX_SNAPSHOT][
                                      node], snapshot_names)]
 
+            display_name = [f"{node} ({snap})" for i, (x, snap) in
+                            enumerate(zip(highlighted_idx_node_coords[
+                                              const.IDX_SNAPSHOT][
+                                              node], snapshot_names))]
+
             if len(snapshot_names) <= 10:
-                display_name = hover_name
-            elif len(snapshot_name) <= 20:
-                display_name = [name if i % 3 == 0 else "" for i, name in enumerate(hover_name)]
+                display_name = display_name
+            elif len(snapshot_names) <= 20:
+                display_name = [name if i % 3 == 0 else "" for i, name in enumerate(display_name)]
             else:
-                display_name = [name if i % 10 == 0 else "" for i, name in enumerate(hover_name)]
+                display_name = [name if i % 10 == 0 else "" for i, name in enumerate(display_name)]
 
 
 

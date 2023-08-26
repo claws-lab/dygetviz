@@ -33,11 +33,7 @@ def get_dataframe_for_visualization(z, args, nodes_li, idx_reference_node, **kwa
     else:
         highlighted_nodes = np.array([])
 
-    if "node2labels" in kwargs:
-        node2labels = kwargs.pop("node2labels")
-
-    else:
-        node2labels = {}
+    node2label = kwargs.pop("node2label")
 
     if args.visualization_model == const.TSNE:
 
@@ -87,7 +83,7 @@ def get_dataframe_for_visualization(z, args, nodes_li, idx_reference_node, **kwa
                 'display_name': node
             }
 
-        if plot_anomaly_labels and node2labels[node] == 1:
+        if plot_anomaly_labels and node2label[node] == 1:
             return {
                 'node_size': 5,
                 'node_color': node_type_to_color['anomaly'],

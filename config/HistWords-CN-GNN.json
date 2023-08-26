@@ -1,0 +1,10 @@
+{
+  "embedding_dim": 128,
+  "idx_reference_snapshot": 4,
+  "interpolation": 0.2,
+  "model_name": "GConvGRU",
+  "num_nearest_neighbors": [20],
+  "perplexity": 20,
+  "projected_nodes": ["节约", "资源", "生态", "环境", "绿色", "气候", "地球"],
+  "reference_nodes": "reference_nodes.json"
+}
