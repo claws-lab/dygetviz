@@ -12,9 +12,7 @@ from arguments import args
 warnings.simplefilter(action='ignore', category=NumbaDeprecationWarning)
 
 
-def load_data() -> dict:
-
-
+def load_data(dataset_name=args.dataset_name) -> dict:
     """
     :return: dict that contains the following fields
         z: np.ndarray of shape (num_nodes, num_timesteps, num_dims): node embeddings
@@ -24,16 +22,16 @@ def load_data() -> dict:
     """
 
     config = json.load(
-        open(osp.join("config", f"{args.dataset_name}.json"), 'r',
+        open(osp.join("config", f"{dataset_name}.json"), 'r',
              encoding='utf-8'))
 
     z = np.load(
-        osp.join("data", args.dataset_name, f"embeds_{args.dataset_name}.npy"))
+        osp.join("data", dataset_name, f"embeds_{dataset_name}.npy"))
     node2idx = json.load(
-        open(osp.join("data", args.dataset_name, "node2idx.json"), 'r',
+        open(osp.join("data", dataset_name, "node2idx.json"), 'r',
              encoding='utf-8'))
     perplexity = config["perplexity"]
-
+    model_name = config["model_name"]
     idx_reference_snapshot = config["idx_reference_snapshot"]
 
     # Optional argument
@@ -50,7 +48,7 @@ def load_data() -> dict:
 
     try:
         node2label = json.load(
-            open(osp.join("data", args.dataset_name, "node2label.json"), 'r',
+            open(osp.join("data", dataset_name, "node2label.json"), 'r',
                  encoding='utf-8'))
 
 
@@ -61,7 +59,7 @@ def load_data() -> dict:
     if isinstance(config['reference_nodes'], str) and config[
         'reference_nodes'].endswith("json"):
         reference_nodes = json.load(
-            open(osp.join("data", args.dataset_name, config['reference_nodes']),
+            open(osp.join("data", dataset_name, config['reference_nodes']),
                  'r', encoding='utf-8'))
 
     elif isinstance(config['reference_nodes'], list):
@@ -73,7 +71,7 @@ def load_data() -> dict:
     if isinstance(config['projected_nodes'], str) and config[
         'projected_nodes'].endswith("json"):
         projected_nodes = json.load(
-            open(osp.join("data", args.dataset_name, config['projected_nodes']),
+            open(osp.join("data", dataset_name, config['projected_nodes']),
                  'r', encoding='utf-8'))
 
     elif isinstance(config['projected_nodes'], list):
@@ -92,9 +90,7 @@ def load_data() -> dict:
 
     highlighted_nodes = []
 
-
-
-    if args.dataset_name == "Chickenpox":
+    if dataset_name == "Chickenpox":
         highlighted_nodes = np.array(
             ["BUDAPEST", "PEST", "BORSOD", "ZALA", "NOGRAD", "TOLNA", "VAS"])
 
@@ -109,7 +105,7 @@ def load_data() -> dict:
         snapshot_names = snapshot_names[0:100]
 
         weekly_cases = pd.read_csv(
-            osp.join("data", args.dataset_name, "hungary_chickenpox.csv"))
+            osp.join("data", dataset_name, "hungary_chickenpox.csv"))
 
         ys = weekly_cases[reference_nodes].values
 
@@ -119,26 +115,31 @@ def load_data() -> dict:
         metadata_df["Country"] = "Hungary"
 
 
-    elif args.dataset_name == "DGraphFin":
+    elif dataset_name == "DGraphFin":
         plot_anomaly_labels = True
         # Eliminate background nodes
         node2label = {n: l for n, l in node2label.items() if l in [0, 1]}
 
 
-    elif args.dataset_name == "BMCBioinformatics2021":
+
+    # elif dataset_name == "Reddit":
+    #     # 2018-01, ..., 2022-12
+    #     snapshot_names = const.dataset_names_60_months
+
+
+    elif dataset_name == "BMCBioinformatics2021":
+
 
         plot_anomaly_labels = True
 
         metadata_df = pd.read_excel(
-            osp.join("data", args.dataset_name, "metadata.xlsx"))
+            osp.join("data", dataset_name, "metadata.xlsx"))
         metadata_df = metadata_df.rename(columns={"entrez": "node"})
         metadata_df = metadata_df.astype({"node": str})
         node2idx = {str(k): v for k, v in node2idx.items()}
 
         metadata_df = metadata_df.drop(
             columns=["summary", "lineage", "gene_type"])
-
-
 
     try:
         label2node = {}
@@ -155,7 +156,7 @@ def load_data() -> dict:
     if node_presence is None:
         try:
             node_presence = np.load(
-                osp.join("data", args.dataset_name, "node_presence.npy"))
+                osp.join("data", dataset_name, "node_presence.npy"))
 
         except FileNotFoundError:
             print(
@@ -163,6 +164,8 @@ def load_data() -> dict:
             node_presence = np.ones((z.shape[0], z.shape[1]), dtype=bool)
 
     return {
+        "dataset_name": dataset_name,
+        "model_name": model_name,
         "display_node_type": display_node_type,
         "highlighted_nodes": highlighted_nodes,
         "idx_reference_snapshot": idx_reference_snapshot,

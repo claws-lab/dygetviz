@@ -43,7 +43,7 @@ parser.add_argument('--comment', type=str, default="",
                     help="Comment for each run. Useful for identifying each run on Tensorboard")
 parser.add_argument('--data_dir', type=str, default="data",
                     help="Location to store all the data.")
-parser.add_argument('--dataset_name', type=str, help="")
+parser.add_argument('--dataset_name', type=str, default='Chickenpox', help="Name of dataset.")
 parser.add_argument('--device', type=str, default=DEVICE, help="Device to use. When using multi-gpu, this is the 'master' device where all operations are performed.")
 parser.add_argument('--device2', type=str, default='cpu',
                     help="For Multi-GPU training")
