@@ -215,7 +215,7 @@ app.layout = html.Div(
             },
             className="text-center",
         ),
-        html.Div("✨: a category. \n\"(1)\": a node label.", id="note"),
+        # html.Div("✨: a category. \n\"(1)\": a node label.", id="note"),
 
         # Store the nodes in `trajectory_names`
         dcc.Store(

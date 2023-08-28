@@ -139,6 +139,12 @@ def load_data() -> dict:
             columns=["summary", "lineage", "gene_type"])
 
 
+    elif args.dataset_name == "HistWords-CN-GNN":
+
+        metadata_df = pd.read_csv(
+            osp.join("data", args.dataset_name, "metadata.csv"))
+
+
 
     try:
         label2node = {}
