@@ -65,3 +65,20 @@ def dot_product_batch(a: torch.Tensor, b: torch.Tensor, batch_size=16384,
             res[i:i + batch_size, j:j + batch_size] = res_batch.cpu()
 
     return res
+
+
+def get_training_args(config: dict):
+    training_args = {}
+
+    for field in ["do_node_classification",
+                  "do_node_regression",
+                  "do_edge_classification",
+                  "do_edge_regression",
+                  "do_link_prediction"]:
+        training_args[field] = config.get(field, False)
+
+    for field in ["num_classes_nodes",
+                  "num_classes_edges"]:
+        training_args[field] = config.get(field, 0)
+
+    return training_args

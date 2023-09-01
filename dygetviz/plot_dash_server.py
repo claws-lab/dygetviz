@@ -56,7 +56,7 @@ app.layout = html.Div(
 
  # Dropdown Row
         dbc.Row(
-            [   dbc.Col(
+            [dbc.Col(
                     [
                         dbc.Label("Select Dataset:",
                                   className="form-label mb-2",

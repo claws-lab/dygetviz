@@ -1,6 +1,11 @@
 import platform
 
 
+DATASET2FILEID = {
+    "Chickenpox": "1oAO5S1ikjxbbgPzBhZJf7Xf9bodbwwCE",
+
+}
+
 # Features in Subreddit
 AUTHOR = 'author'
 AUTHOR_FULLNAME = 'author_fullname'

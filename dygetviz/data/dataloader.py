@@ -6,8 +6,9 @@ import numpy as np
 import pandas as pd
 from numba import NumbaDeprecationWarning
 
-import const
 from arguments import args
+
+from dygetviz.data.chickenpox import ChickenpoxDataset
 
 warnings.simplefilter(action='ignore', category=NumbaDeprecationWarning)
 
@@ -20,6 +21,8 @@ def load_data(dataset_name=args.dataset_name) -> dict:
         node2idx: dict that maps node name to node index
         node_presence: np.ndarray of shape (num_nodes, num_timesteps): 1 if node is present at timestep, 0 otherwise
     """
+
+
 
     config = json.load(
         open(osp.join("config", f"{dataset_name}.json"), 'r',
@@ -191,3 +194,27 @@ def load_data(dataset_name=args.dataset_name) -> dict:
         "z": z,
 
     }
+
+
+
+def load_data_dtdg(dataset_name: str):
+    """
+    Load data for embedding training on Discrete-Time Dynamic-Graph (DTDG) models.
+    """
+    from torch_geometric_temporal.signal import temporal_signal_split
+
+    if dataset_name == "UNComtrade":
+
+        path = osp.join(args.cache_dir, f"full_dataset_{args.dataset_name}.pt")
+        full_dataset = UNComtradeDataset(args)
+
+    elif dataset_name == "Chickenpox":
+        full_dataset = ChickenpoxDataset(args)
+
+    else:
+        raise NotImplementedError
+
+    train_dataset, test_dataset = temporal_signal_split(full_dataset,
+                                                        train_ratio=1.)
+
+    return train_dataset, test_dataset, full_dataset

@@ -6,7 +6,7 @@ import numpy as np
 
 
 def project_setup():
-    from utils.utils_data import check_cwd
+    from .utils_data import check_cwd
     check_cwd()
     import warnings
     import pandas as pd
