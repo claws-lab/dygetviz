@@ -129,6 +129,8 @@ parser.add_argument('--num_sample_resource', type=int, default=-1,
 parser.add_argument('--num_sample_author', type=int, default=-1,
                     help="Number of resource to sample in our dataset. Set to -1 if we do not want to sample")
 
+parser.add_argument('--num_snapshots', type=int, default=10, help="Number of snapshots to use for Continuous-Time Dynamic Graph models, such as TGN")
+
 parser.add_argument('--port', type=int, default=8050)
 
 parser.add_argument('--save_embed_every', type=int, default=10,

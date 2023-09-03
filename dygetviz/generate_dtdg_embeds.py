@@ -215,6 +215,7 @@ def train(epoch, embeds_li: list):
 
 for epoch in trange(args.epochs):
 
+    # Store the embeddings at each epoch
     embeds_li = []
     train(epoch, embeds_li)
 
