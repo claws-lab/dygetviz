@@ -14,13 +14,11 @@ import plotly.io as pio
 from dash import dcc, html
 from dash.dependencies import Input, Output, State
 from tqdm import tqdm
-import json
 
 import const
 import const_viz
 from arguments import args
 from data.dataloader import load_data
-from utils.utils_data import get_modified_time_of_file
 from utils.utils_misc import project_setup
 from utils.utils_visual import get_colors, get_nodes_and_options
 
@@ -215,6 +213,13 @@ def add_traces(fig, figure_name2trace):
 # List to keep track of current annotations
 annotations = []
 
+def convert_scatter_to_scattergl(scatter):
+    line = { "color": scatter.line.color, "dash": scatter.line.dash, "shape": scatter.line.shape, "width": scatter.line.width }
+    marker = { "size": scatter.marker.size, 'symbol': scatter.marker.symbol}
+    return go.Scattergl(x=scatter.x, y=scatter.y, xaxis=scatter.xaxis, yaxis=scatter.yaxis, customdata=scatter.customdata,
+                        hovertemplate=scatter.hovertemplate, hovertext=scatter.hovertext, legendgroup=scatter.legendgroup, 
+                        line= line, marker=marker, mode=scatter.mode, name=scatter.name, showlegend=scatter.showlegend,
+                          selectedpoints=scatter.selectedpoints, text=scatter.text, textposition=scatter.textposition)
 @app.callback(
     Output('dygetviz', 'figure'),
     Output('trajectory-names-store', 'data'),
@@ -353,16 +358,15 @@ def update_graph(dataset_name, trajectory_names, clickData, current_figure, traj
             elif value in nodes:
 
                 trace = node2trace[value]
-
+                trace = convert_scatter_to_scattergl(trace)
                 if display_node_type:
                     label = node2label[value]
                     trace.line['color'] = label2colors[label][idx]
                     print(f"\tAdd node:\t{value} ({label})")
-
                 else:
                     trace.line['color'] = label2colors[0][idx]
-                    print(f"\tAdd node:\t{value}")
-
+                    print(f"\tAdd node:\t{value}") 
+                
                 fig.add_trace(trace)
 
 
@@ -372,6 +376,8 @@ def update_graph(dataset_name, trajectory_names, clickData, current_figure, traj
 
                 for idx_node, node in enumerate(label2node[value]):
                     trace = node2trace[node]
+                    print("trying to convert to scattergl3")
+                    trace = convert_scatter_to_scattergl(trace)
                     trace.line['color'] = label2colors[value][idx_node % 12]
                     fig.add_trace(trace)
 

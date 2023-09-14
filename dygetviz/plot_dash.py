@@ -282,6 +282,13 @@ def generate_node_profile(profile: pd.DataFrame):
     profile['description'] = profile.apply(f, axis=1)
     return profile
 
+def convert_scatter_to_scattergl(scatter):
+    line = { "color": scatter.line.color, "dash": scatter.line.dash, "shape": scatter.line.shape, "width": scatter.line.width }
+    marker = { "size": scatter.marker.size, 'symbol': scatter.marker.symbol}
+    return go.Scattergl(x=scatter.x, y=scatter.y, xaxis=scatter.xaxis, yaxis=scatter.yaxis, customdata=scatter.customdata,
+                        hovertemplate=scatter.hovertemplate, hovertext=scatter.hovertext, legendgroup=scatter.legendgroup, 
+                        line= line, marker=marker, mode=scatter.mode, name=scatter.name, showlegend=scatter.showlegend,
+                          selectedpoints=scatter.selectedpoints, text=scatter.text, textposition=scatter.textposition)
 
 # List to keep track of current annotations
 annotations = []
@@ -422,7 +429,7 @@ def update_graph(trajectory_names, clickData, current_figure,
             elif value in nodes:
 
                 trace = node2trace[value]
-
+                trace = convert_scatter_to_scattergl(trace)
                 if display_node_type:
                     label = node2label[value]
                     trace.line['color'] = label2colors[label][idx]
@@ -441,6 +448,8 @@ def update_graph(trajectory_names, clickData, current_figure,
 
                 for idx_node, node in enumerate(label2node[value]):
                     trace = node2trace[node]
+                    # Haven't tested this since I believe category is broken (after adding only a subset of node trajectories)
+                    trace = convert_scatter_to_scattergl(trace)
                     trace.line['color'] = label2colors[value][idx_node % 12]
                     fig.add_trace(trace)
 
