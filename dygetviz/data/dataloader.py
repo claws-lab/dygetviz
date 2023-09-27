@@ -93,6 +93,8 @@ def load_data(dataset_name=args.dataset_name) -> dict:
 
     highlighted_nodes = []
 
+    label2name = {}
+
     if dataset_name == "Chickenpox":
         highlighted_nodes = np.array(
             ["BUDAPEST", "PEST", "BORSOD", "ZALA", "NOGRAD", "TOLNA", "VAS"])
@@ -123,6 +125,11 @@ def load_data(dataset_name=args.dataset_name) -> dict:
         # Eliminate background nodes
         node2label = {n: l for n, l in node2label.items() if l in [0, 1]}
 
+        label2name = {
+            0: "normal user",
+            1: "fraudster"
+        }
+
 
 
     # elif dataset_name == "Reddit":
@@ -131,7 +138,10 @@ def load_data(dataset_name=args.dataset_name) -> dict:
 
 
     elif dataset_name == "BMCBioinformatics2021":
-
+        label2node = {
+            0: "NON-aging-related",
+            1: "aging-related"
+        }
 
         plot_anomaly_labels = True
 
@@ -180,6 +190,7 @@ def load_data(dataset_name=args.dataset_name) -> dict:
         "highlighted_nodes": highlighted_nodes,
         "idx_reference_snapshot": idx_reference_snapshot,
         "interpolation": interpolation,
+        "label2name": label2name,
         "label2node": label2node,
         "metadata_df": metadata_df,
         "node2idx": node2idx,

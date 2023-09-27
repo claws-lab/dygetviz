@@ -2,6 +2,8 @@
 
 Our framework is DyGETViz, which stands for **Dynamic Graph Embedding Trajectories Visualization**.
 
+![DyGETViz](./assets/img/Logo_DyGETViz.png)
+
 ## Installation
 
 ### Install the Dependencies

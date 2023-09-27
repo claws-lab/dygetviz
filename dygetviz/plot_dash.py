@@ -18,7 +18,7 @@ import const
 import const_viz
 from arguments import args
 from data.dataloader import load_data
-from utils.utils_data import get_modified_time_of_file
+from utils.utils_data import get_modified_time_of_file, read_markdown_into_html
 from utils.utils_misc import project_setup
 from utils.utils_visual import get_colors
 
@@ -35,6 +35,7 @@ node_presence: np.ndarray = data["node_presence"]
 node2idx: dict = data["node2idx"]
 node2label: dict = data["node2label"]
 label2node: dict = data["label2node"]
+label2name: dict = data["label2name"]
 metadata_df: dict = data["metadata_df"]
 num_nearest_neighbors: int = data["num_nearest_neighbors"]
 perplexity: int = data["perplexity"]
@@ -123,7 +124,7 @@ for node, idx in node2idx.items():
     if display_node_type:
         label = node2label[node]
 
-        name = f"{node} ({label})"
+        name = f"{node} ({label2name[label]})"
 
     else:
         name = node
@@ -148,10 +149,16 @@ options = options_categories + options_nodes
 print("Start the app ...")
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
+print("Reading plotly button explanations ...")
 with open('dygetviz/static/Plotly_Button_Explanations.html', 'r') as file:
     plotly_button_explanations = file.read()
 
 app.title = f"DyGetViz | {args.dataset_name}"
+
+
+print("Reading dataset explanations ...")
+dataset_descriptions = read_markdown_into_html(osp.join(args.data_dir, args.dataset_name, "data_descriptions.md"))
+
 
 app.layout = html.Div(
     [
@@ -257,7 +264,9 @@ app.layout = html.Div(
         dbc.Row([
             dbc.Col([
                 html.H3(f"Dataset Introduction", className="text-center"),
-                html.P("TODO", className="text-center"),
+                html.Iframe(srcDoc=dataset_descriptions,
+                            style={"width": "100%", "height": "500px"}),
+                # html.P(explanation, className="text-center"),
             ]),
 
             dbc.Col([
@@ -426,7 +435,7 @@ def update_graph(trajectory_names, clickData, current_figure,
                 if display_node_type:
                     label = node2label[value]
                     trace.line['color'] = label2colors[label][idx]
-                    print(f"\tAdd node:\t{value} ({label})")
+                    print(f"\tAdd node:\t{value} ({label2name[label]})")
 
                 else:
                     trace.line['color'] = label2colors[0][idx]

@@ -5,6 +5,8 @@ import traceback
 from typing import Union
 
 
+
+
 def check_cwd():
     basename = osp.basename(osp.normpath(os.getcwd()))
     assert basename.lower() in [
@@ -23,6 +25,18 @@ def to_dict(obj):
             obj_dict[key] = to_dict(val)
     return obj_dict
 
+
+def read_markdown_into_html(path: str):
+    import markdown
+    with open(path, 'r', encoding='utf-8') as markdown_file:
+        markdown_text = markdown_file.read()
+
+    # Convert Markdown to HTML
+    html_output = markdown.markdown(markdown_text)
+
+
+
+    return html_output
 
 def dump_and_check(d: Union[list, dict], outdir: str, max_tries: int = 10):
     """Dump tweets to json file and check if the file exists"""

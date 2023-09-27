@@ -46,8 +46,8 @@ parser.add_argument('--dataset_name', type=str, default='Chickenpox',
 parser.add_argument('--device', type=str, default=DEFAULT_DEVICE,
                     help="Device to use. When using multi-gpu, this is the 'master' device where all operations are performed.")
 
-parser.add_argument('--do_test', action='store_true')
-parser.add_argument('--do_val', action='store_true')
+parser.add_argument('--do_test', type=bool, default=True)
+parser.add_argument('--do_val', type=bool, default=False)
 parser.add_argument('--do_weighted', action='store_true',
                     help="Construct weighted graph instead of multigraph for each graph snapshot")
 
@@ -133,7 +133,7 @@ parser.add_argument('--num_snapshots', type=int, default=10, help="Number of sna
 
 parser.add_argument('--port', type=int, default=8050)
 
-parser.add_argument('--save_embed_every', type=int, default=10,
+parser.add_argument('--save_embeds_every', type=int, default=10,
                     help="How many epochs to save embeddings for visualization?")
 
 parser.add_argument('--save_model_every', type=int, default=-1,
