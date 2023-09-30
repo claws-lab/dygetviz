@@ -121,7 +121,9 @@ def train(args, assoc, criterion, data, device, device_viz, embeds_li: list,
                 # We are starting a new snapshot.
                 embeds_li += [embeddings.detach().cpu().numpy()]
                 node_presence_li += [node_presence.detach().cpu().numpy()]
-                idx_snapshot += 1
+
+                if idx_snapshot < len(snapshot_indices) - 1:
+                    idx_snapshot += 1
 
                 print(f"INFO: {idx_snapshot}-th snapshot saved at batch {idx_batch}.")
 
@@ -147,7 +149,7 @@ def train(args, assoc, criterion, data, device, device_viz, embeds_li: list,
 
 
 @torch.no_grad()
-def test(assoc, data, device, device_viz, embeddings: torch.Tensor, embeds_li: list, evaluator, loader, metric, model, neg_sampler,
+def test(assoc, data, device, device_viz, embeddings: torch.Tensor, embeds_li: list, epoch:int, evaluator, loader, metric, model, neg_sampler,
          neighbor_loader, node_presence: torch.Tensor, node_presence_li: List[np.ndarray], snapshot_indices, split_mode: str, start_batch_index:int, store_embeds: bool):
     r"""
     Evaluated the dynamic link prediction
@@ -185,7 +187,7 @@ def test(assoc, data, device, device_viz, embeddings: torch.Tensor, embeds_li: l
 
     idx_snapshot = len(embeds_li)
 
-    for pos_batch in tqdm(loader, desc=f"{split_mode.capitalize()}", position=0, leave=True):
+    for idx_batch, pos_batch in enumerate(tqdm(loader, desc=f"{split_mode.capitalize()}", position=0, leave=True)):
         pos_src, pos_dst, pos_t, pos_msg = (
             pos_batch.src,
             pos_batch.dst,
@@ -196,11 +198,11 @@ def test(assoc, data, device, device_viz, embeddings: torch.Tensor, embeds_li: l
         neg_batch_list = neg_sampler.query_batch(pos_src, pos_dst, pos_t,
                                                  split_mode=split_mode)
 
-        for idx_batch, neg_batch in enumerate(neg_batch_list):
-            src = torch.full((1 + len(neg_batch),), pos_src[idx_batch], device=device)
+        for idx, neg_batch in enumerate(neg_batch_list):
+            src = torch.full((1 + len(neg_batch),), pos_src[idx], device=device)
             dst = torch.tensor(
                 np.concatenate(
-                    ([np.array([pos_dst.cpu().numpy()[idx_batch]]),
+                    ([np.array([pos_dst.cpu().numpy()[idx]]),
                       np.array(neg_batch)]),
                     axis=0,
                 ),
@@ -234,10 +236,12 @@ def test(assoc, data, device, device_viz, embeddings: torch.Tensor, embeds_li: l
                     # We are starting a new snapshot.
                     embeds_li += [embeddings.detach().cpu().numpy()]
                     node_presence_li += [node_presence.detach().cpu().numpy()]
-                    idx_snapshot += 1
+
+                    if idx_snapshot < len(snapshot_indices) - 1:
+                        idx_snapshot += 1
 
                     print(
-                        f"INFO: {idx_snapshot}-th snapshot saved at batch {idx_batch}.")
+                        f"INFO: {idx_snapshot}-th snapshot saved at batch {idx_batch + start_batch_index}.")
 
                     # All nodes present in the prev snapshot is considered present in the next snapshot.
                     # node_presence[idx_snapshot + 1] = node_presence[idx_snapshot]
@@ -257,6 +261,10 @@ def test(assoc, data, device, device_viz, embeddings: torch.Tensor, embeds_li: l
         # Update memory and neighbor loader with ground-truth state.
         model['memory'].update_state(pos_src, pos_dst, pos_t, pos_msg)
         neighbor_loader.insert(pos_src, pos_dst)
+
+    # Save the last snapshot
+    embeds_li += [embeddings.detach().cpu().numpy()]
+    node_presence_li += [node_presence.detach().cpu().numpy()]
 
     perf_metrics = float(torch.tensor(perf_list).mean())
 
@@ -295,7 +303,7 @@ def get_dynamic_graph_embeddings():
 
     device = args.device
     # Device for storing all embeddings for visualization
-    device_viz = "mps:0"
+    device_viz = args.device_viz
 
     # data loading
     dataset = PyGLinkPropPredDataset(name=DATA, root="datasets")
@@ -369,7 +377,7 @@ def get_dynamic_graph_embeddings():
     neg_sampler = dataset.negative_sampler
 
     # for saving the results...
-    results_path = f'{osp.dirname(osp.abspath(__file__))}/saved_results'
+    results_path = f'saved_results'
     if not osp.exists(results_path):
         os.mkdir(results_path)
         print('INFO: Create directory {}'.format(results_path))
@@ -387,7 +395,7 @@ def get_dynamic_graph_embeddings():
         set_random_seed(run_idx + SEED)
 
         # define an early stopper
-        save_model_dir = f'{osp.dirname(osp.abspath(__file__))}/saved_models/'
+        save_model_dir = f'saved_models/'
         save_model_id = f'{MODEL_NAME}_{DATA}_{SEED}_{run_idx}'
         early_stopper = EarlyStopMonitor(save_model_dir=save_model_dir,
                                          save_model_id=save_model_id,
@@ -437,7 +445,7 @@ def get_dynamic_graph_embeddings():
             if args.do_val:
                 # validation
                 start_val = timeit.default_timer()
-                perf_metric_val, latest_embeddings, latest_node_presence = test(assoc, data, device, device_viz, latest_embeddings, embeds_li, evaluator,
+                perf_metric_val, latest_embeddings, latest_node_presence = test(assoc, data, device, device_viz, latest_embeddings, embeds_li, epoch, evaluator,
                                        val_loader, metric, model, neg_sampler,
                                        neighbor_loader, latest_node_presence, node_presence_li, snapshot_indices,
                                        "val", start_batch_index=len(train_loader), store_embeds=store_embeds)
@@ -465,7 +473,7 @@ def get_dynamic_graph_embeddings():
 
                 # final testing
                 start_test = timeit.default_timer()
-                perf_metric_test, latest_embeddings, latest_node_presence = test(assoc, data, device, device_viz, latest_embeddings, embeds_li, evaluator,
+                perf_metric_test, latest_embeddings, latest_node_presence = test(assoc, data, device, device_viz, latest_embeddings, embeds_li, epoch, evaluator,
                                         test_loader, metric, model, neg_sampler,
                                         neighbor_loader, latest_node_presence, node_presence_li, snapshot_indices,
                                         "test", start_batch_index=len(train_loader) + len(val_loader), store_embeds=store_embeds)
@@ -490,8 +498,8 @@ def get_dynamic_graph_embeddings():
 
             print(
                 f"INFO: >>>>> Run: {run_idx}, elapsed time: {timeit.default_timer() - start_run: .4f} <<<<<")
-            print(
-                '-------------------------------------------------------------------------------')
+            print('-' * 30)
+
 
             if epoch % args.save_embeds_every == 0:
                 print(f"[Embeds] Saving embeddings for Ep. {epoch} ...",
@@ -502,9 +510,9 @@ def get_dynamic_graph_embeddings():
                 os.makedirs(osp.join(args.data_dir, args.dataset_name),
                             exist_ok=True)
                 np.save(osp.join(args.data_dir, args.dataset_name,
-                                 f"{args.model}_embeds_{args.dataset_name}_Ep{epoch + 1}_Emb{args.embedding_dim}.npy"),
+                                 f"{args.model}_embeds_{args.dataset_name}_Ep{epoch}_Emb{args.embedding_dim}.npy"),
                         embeds_li)
-                np.save(osp.join(args.data_dir, "embeds", "node_presence.npy"),
+                np.save(osp.join(args.data_dir, args.dataset_name, f"{args.model}_node_presence_{args.dataset_name}_Ep{epoch}_Ep{epoch}_Emb{args.embedding_dim}.npy"),
                         node_presence_li)
 
                 print("Done!")
