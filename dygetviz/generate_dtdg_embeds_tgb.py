@@ -41,7 +41,7 @@ os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 # ========== Define helper function...
 # ==========
 
-def train(args, assoc, criterion, data, device, device_viz, embeds_li: list,
+def train(args, assoc, criterion, data, device, device_viz, embeds_li: list, epoch: int,
           max_dst_idx: int,
           min_dst_idx: int, model, neighbor_loader, node_presence_li, optimizer,
           snapshot_indices, store_embeds: bool,
@@ -67,7 +67,7 @@ def train(args, assoc, criterion, data, device, device_viz, embeds_li: list,
     total_loss = 0
 
     # Index of the current snapshot for embedding storage
-    idx_snapshot = 0
+    idx_snapshot = 1
 
     if store_embeds:
         embeddings = torch.zeros((data.num_nodes, args.embedding_dim),
@@ -117,15 +117,15 @@ def train(args, assoc, criterion, data, device, device_viz, embeds_li: list,
             node_presence[n_id] = True
 
             # print(node_presence[idx_snapshot].sum())
-            if idx_batch == snapshot_indices[idx_snapshot]:
+            if idx_batch + 1 == snapshot_indices[idx_snapshot]:
                 # We are starting a new snapshot.
                 embeds_li += [embeddings.detach().cpu().numpy()]
                 node_presence_li += [node_presence.detach().cpu().numpy()]
 
-                if idx_snapshot < len(snapshot_indices) - 1:
-                    idx_snapshot += 1
+                idx_snapshot += 1
 
-                print(f"INFO: {idx_snapshot}-th snapshot saved at batch {idx_batch}.")
+
+                print(f"[Epoch ({epoch})]: {idx_snapshot}-th snapshot (#Nodes={node_presence.sum().item()}) saved at batch {idx_batch}.")
 
                 # All nodes present in the prev snapshot is considered present in the next snapshot.
                 # node_presence[idx_snapshot + 1] = node_presence[idx_snapshot]
@@ -185,7 +185,7 @@ def test(assoc, data, device, device_viz, embeddings: torch.Tensor, embeds_li: l
     else:
         embeddings = node_presence = None
 
-    idx_snapshot = len(embeds_li)
+    idx_snapshot = len(embeds_li) + 1
 
     for idx_batch, pos_batch in enumerate(tqdm(loader, desc=f"{split_mode.capitalize()}", position=0, leave=True)):
         pos_src, pos_dst, pos_t, pos_msg = (
@@ -232,16 +232,16 @@ def test(assoc, data, device, device_viz, embeddings: torch.Tensor, embeds_li: l
                 # print(node_presence[idx_snapshot].sum())
                 # Pad by the number of batches in the training set
                 # For test, we will add #batches in the validation set)
-                if idx_batch + start_batch_index == snapshot_indices[idx_snapshot]:
+                if idx_snapshot < len(snapshot_indices) and idx_batch + start_batch_index + 1 == snapshot_indices[idx_snapshot]:
                     # We are starting a new snapshot.
                     embeds_li += [embeddings.detach().cpu().numpy()]
                     node_presence_li += [node_presence.detach().cpu().numpy()]
+                    idx_snapshot += 1
 
-                    if idx_snapshot < len(snapshot_indices) - 1:
-                        idx_snapshot += 1
+
 
                     print(
-                        f"INFO: {idx_snapshot}-th snapshot saved at batch {idx_batch + start_batch_index}.")
+                        f"[Epoch ({epoch})]: {idx_snapshot}-th snapshot (#Nodes={node_presence.sum().item()}) saved at batch {idx_batch + start_batch_index}.")
 
                     # All nodes present in the prev snapshot is considered present in the next snapshot.
                     # node_presence[idx_snapshot + 1] = node_presence[idx_snapshot]
@@ -262,9 +262,10 @@ def test(assoc, data, device, device_viz, embeddings: torch.Tensor, embeds_li: l
         model['memory'].update_state(pos_src, pos_dst, pos_t, pos_msg)
         neighbor_loader.insert(pos_src, pos_dst)
 
-    # Save the last snapshot
-    embeds_li += [embeddings.detach().cpu().numpy()]
-    node_presence_li += [node_presence.detach().cpu().numpy()]
+    # if store_embeds:
+    #     # Save the last snapshot
+    #     embeds_li += [embeddings.detach().cpu().numpy()]
+    #     node_presence_li += [node_presence.detach().cpu().numpy()]
 
     perf_metrics = float(torch.tensor(perf_list).mean())
 
@@ -421,7 +422,7 @@ def get_dynamic_graph_embeddings():
 
         print(f"INFO: #batches={num_batches}")
         snapshot_indices = torch.linspace(0, num_batches,
-                                          args.num_snapshots,
+                                          args.num_snapshots + 1,
                                           dtype=int)
 
         for epoch in trange(1, NUM_EPOCH + 1, desc="Train"):
@@ -432,7 +433,7 @@ def get_dynamic_graph_embeddings():
             store_embeds = epoch % args.save_embeds_every == 0
             loss, latest_embeddings, latest_node_presence = train(args, assoc, criterion,
                          data, device, device_viz,
-                         embeds_li,
+                         embeds_li, epoch,
                          max_dst_idx, min_dst_idx,
                          model, neighbor_loader,
                          node_presence_li,
@@ -512,7 +513,7 @@ def get_dynamic_graph_embeddings():
                 np.save(osp.join(args.data_dir, args.dataset_name,
                                  f"{args.model}_embeds_{args.dataset_name}_Ep{epoch}_Emb{args.embedding_dim}.npy"),
                         embeds_li)
-                np.save(osp.join(args.data_dir, args.dataset_name, f"{args.model}_node_presence_{args.dataset_name}_Ep{epoch}_Ep{epoch}_Emb{args.embedding_dim}.npy"),
+                np.save(osp.join(args.data_dir, args.dataset_name, f"{args.model}_node_presence_{args.dataset_name}_Ep{epoch}_Emb{args.embedding_dim}.npy"),
                         node_presence_li)
 
                 print("Done!")
