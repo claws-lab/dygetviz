@@ -4,11 +4,14 @@
   "k_value": 10,
   "num_epoch": 50,
   "seed": 1,
+  "epoch": 2,
   "mem_dim": 100,
+  "model": "tgn",
   "time_dim": 100,
   "emb_dim": 100,
   "tolerance": 1e-06,
   "patience": 5,
+  "perplexity": 5,
   "num_run": 1,
   "num_snapshots": 10
 }

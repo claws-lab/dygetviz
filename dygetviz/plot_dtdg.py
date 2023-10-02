@@ -13,13 +13,14 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import plotly.io as pio
+import torch
 from tqdm import tqdm
 
 import const
 from arguments import args
 from const_viz import *
 from data.dataloader import load_data
-from utils.utils_misc import project_setup
+from utils.utils_misc import project_setup, get_visualization_name
 from utils.utils_training import pairwise_cos_sim
 from utils.utils_visual import get_colors, get_hovertemplate
 from visualization.anchor_nodes_generator import get_dataframe_for_visualization
@@ -29,12 +30,29 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 ########## General Parameters. May be overwritten by individual datasets ##########
 K = 10
 
+
 ################################
 
-if __name__ == "__main__":
+def get_visualization_cache(dataset_name: str, device: str, model_name: str,
+                            visualization_dim, visualization_model_name: str):
+    r"""
 
-    project_setup()
-    data = load_data()
+    Args:
+        dataset_name (str): Dataset name
+        device (str): Device to use for tensor computation
+        model_name (str): The DTDG model name (e.g. tgn, DyRep, etc.) that trained the embeddings
+        visualization_dim (int): The dimension of the visualization, either 2 or 3 (2D or 3D).
+        visualization_model_name (str): The visualization model (e.g. tsne, umap, etc.) that projects the embeddings to 2D/3D
+
+    Returns:
+
+    """
+
+    print("TODO")
+    if dataset_name.startswith("tgbl"):
+        data = load_data(dataset_name, True)
+    else:
+        data = load_data(dataset_name)
 
     annotation = data.get("annotation", {})
     highlighted_nodes = data["highlighted_nodes"]
@@ -51,6 +69,10 @@ if __name__ == "__main__":
     reference_nodes = data["reference_nodes"]
     snapshot_names = data["snapshot_names"]
     z = data["z"]
+
+    DEBUG = True
+
+    visual_dir = osp.join("outputs", "visual", dataset_name)
 
     # Enable this line if we want to include all trajectories when we generate the visualization cache (*.json) files.
     # NOTE: this will make the visualization cache files very large and dataloading very slow.
@@ -72,7 +94,7 @@ if __name__ == "__main__":
     reference_node2idx = {node: idx for idx, node in enumerate(reference_nodes)}
     reference_idx2node = {idx: node for idx, node in enumerate(reference_nodes)}
 
-    if args.dataset_name in const.dataset_name2months:
+    if dataset_name in const.dataset_name2months:
         # All nodes with insufficient interactions should be set to 0 already
         assert \
             z[idx_reference_snapshot, idx_reference_node].sum(
@@ -101,7 +123,9 @@ if __name__ == "__main__":
             const.IDX_SNAPSHOT: defaultdict(list),
         }
 
-        visualization_name = f"{args.dataset_name}_{args.model}_{args.visualization_model}_perplex{perplexity}_nn{nn}_interpolation{interpolation}_snapshot{idx_reference_snapshot}"
+        visualization_name = get_visualization_name(dataset_name, model_name,
+                                   visualization_model_name, perplexity, nn,
+                                   interpolation, idx_reference_snapshot)
 
         embedding_train = outputs['embedding']
         df_visual = outputs['df_visual']
@@ -131,7 +155,7 @@ if __name__ == "__main__":
                                  size="node_size",
                                  color='node_color', text="display_name",
                                  hover_name="node",
-                                 title=f"{args.model}_{args.dataset_name}",
+                                 title=f"{model_name}_{dataset_name}",
                                  log_x=False,
                                  opacity=0.7)
 
@@ -148,13 +172,12 @@ if __name__ == "__main__":
             fig_scatter.data[0].hovertemplate = get_hovertemplate(
                 fields_in_customdata=fields, is_trajectory=False)
 
-        path_coords = osp.join(args.visual_dir, f"{visualization_name}.xlsx")
+        path_coords = osp.join(visual_dir, f"{visualization_name}.xlsx")
 
         # Save the coordinates of the anchor nodes so that we can plot them later using searborn / matplotlib
 
         with pd.ExcelWriter(path_coords, engine='openpyxl') as writer:
             df_visual.to_excel(writer, sheet_name='background', index=False)
-
 
         def adjust_node_color_size(fig):
             """
@@ -172,13 +195,16 @@ if __name__ == "__main__":
                     node_type]
             return fig
 
-
         fig_scatter = adjust_node_color_size(fig_scatter)
+
+        embedding_test_all = []
 
         for idx_snapshot, snapshot_name in enumerate(snapshot_names):
 
             # Original temporal node embeddings to be projected at snapshot `idx_snapshot`
+
             try:
+                # (#reference_nodes, embed_dim)
                 z_reference_embeds = z[idx_snapshot,
                                      idx_reference_node, :]
 
@@ -190,54 +216,100 @@ if __name__ == "__main__":
                                              :]
 
             cos_sim_mat = pairwise_cos_sim(z_projected_embeds,
-                                           z_reference_embeds, args.device)
+                                           z_reference_embeds, device)
 
             z_projected_coords_li = []
 
-            embedding_test: np.ndarray = np.zeros((len(projected_nodes), 2))
+            # Naive implementation: Start
 
-            for i, node in enumerate(
-                    tqdm(projected_nodes, desc=f"Snapshot {idx_snapshot}")):
-                cos_sim_topk_closest_reference_nodes, idx_topk_closest_reference_nodes = \
-                    cos_sim_mat[i].topk(nn + 1,
-                                        largest=True, )
+            if DEBUG:
+                embedding_test2: np.ndarray = np.zeros(
+                    (len(projected_nodes), visualization_dim))
+                for i, node in enumerate(
+                        tqdm(projected_nodes, desc=f"Snapshot {idx_snapshot}")):
+                    cos_sim_topk_closest_reference_nodes, idx_topk_closest_reference_nodes = \
+                        cos_sim_mat[i].topk(nn + 1,
+                                            largest=True, )
 
-                possible_idx_reference_node = reference_node2idx.get(node, -1)
-                # When calculating the nearest neighbor of `node`, we should exclude `node` itself
-                # Algorithm 1 Line 7-9
-                cos_sim_topk_closest_reference_nodes: np.ndarray = \
-                    cos_sim_topk_closest_reference_nodes[
-                        idx_topk_closest_reference_nodes != possible_idx_reference_node][
-                    :nn].cpu().numpy()
-                idx_topk_closest_reference_nodes: np.ndarray = \
-                    idx_topk_closest_reference_nodes[
-                        idx_topk_closest_reference_nodes != possible_idx_reference_node][
-                    :nn].cpu().numpy()
-                # Algorithm 1 Line 10
-                topk_closest_reference_nodes = [reference_nodes[idx] for idx in
-                                                idx_topk_closest_reference_nodes]
+                    possible_idx_reference_node = reference_node2idx.get(node,
+                                                                         -1)
+                    # When calculating the nearest neighbor of `node`, we should exclude `node` itself
+                    # Algorithm 1 Line 7-9
+                    cos_sim_topk_closest_reference_nodes: np.ndarray = \
+                        cos_sim_topk_closest_reference_nodes[
+                            idx_topk_closest_reference_nodes != possible_idx_reference_node][
+                        :nn].cpu().numpy()
+                    idx_topk_closest_reference_nodes: np.ndarray = \
+                        idx_topk_closest_reference_nodes[
+                            idx_topk_closest_reference_nodes != possible_idx_reference_node][
+                        :nn].cpu().numpy()
+                    # Algorithm 1 Line 10
+                    topk_closest_reference_nodes = [reference_nodes[idx] for idx
+                                                    in
+                                                    idx_topk_closest_reference_nodes]
 
-                # Algorithm 1 Line 11
-                # (nn, 2)
-                z_projected_coords = np.array(embedding_train[
-                                                  idx_topk_closest_reference_nodes].tolist()).mean(
-                    axis=0)
+                    # Algorithm 1 Line 11
+                    # (nn, 2)
+                    z_projected_coords = np.array(embedding_train[
+                                                      idx_topk_closest_reference_nodes].tolist()).mean(
+                        axis=0)
 
-                # Algorithm 1 Line 12
-                embedding_test[i] = embedding_train[
-                                        possible_idx_reference_node] * interpolation + z_projected_coords * (
-                                            1 - interpolation)
+                    # Algorithm 1 Line 12
+                    embedding_test2[i] = embedding_train[
+                                             possible_idx_reference_node] * interpolation + z_projected_coords * (
+                                                 1 - interpolation)
 
-            for i, node in enumerate(projected_nodes):
-                idx_node = node2idx[node]
+            # Naive implementation: End
 
-                if node_presence[idx_snapshot, idx_node]:
-                    highlighted_idx_node_coords['x'][node] += [
-                        embedding_test[i][0]]
-                    highlighted_idx_node_coords['y'][node] += [
-                        embedding_test[i][1]]
-                    highlighted_idx_node_coords[const.IDX_SNAPSHOT][node] += [
-                        idx_snapshot]
+            # Vectorize inner loop
+            all_possible_idx_reference_node = torch.tensor(
+                [reference_node2idx.get(node, -1)
+                 for node in projected_nodes], device=device)
+
+            # Compute top-k values for all nodes at once
+            cos_sim_topk_values, cos_sim_topk_indices = cos_sim_mat.topk(nn + 1,
+                                                                         largest=True)
+
+            mask = (cos_sim_topk_indices != all_possible_idx_reference_node[:,
+                                            None])
+            # For each row, keep the first nn `True`
+            mask = mask & (torch.concat(
+                [torch.ones((mask.shape[0], nn), dtype=torch.bool),
+                 (mask.sum(dim=1) <= nn).reshape(-1, 1)], dim=1))
+
+            cos_sim_topk_values = cos_sim_topk_values[mask].reshape(-1,
+                                                                    nn).cpu().numpy()
+            cos_sim_topk_indices = cos_sim_topk_indices[mask].reshape(-1,
+                                                                      nn).cpu().numpy()
+
+            z_projected_coords = np.array(
+                embedding_train[cos_sim_topk_indices].tolist()).mean(axis=1)
+
+            # Algorithm 1 Line 12 (Vectorized)
+            embedding_test = embedding_train[
+                                 all_possible_idx_reference_node] * interpolation + z_projected_coords * (
+                                         1 - interpolation)
+
+            if DEBUG:
+                print("[Sanity Check] The following should print True:",
+                      np.allclose(embedding_test, embedding_test2.__array__()))
+
+            if DEBUG:
+                for i, node in enumerate(projected_nodes):
+                    idx_node = node2idx[node]
+
+                    if node_presence[idx_snapshot, idx_node]:
+                        highlighted_idx_node_coords['x'][node] += [
+                            embedding_test[i][0]]
+                        highlighted_idx_node_coords['y'][node] += [
+                            embedding_test[i][1]]
+                        highlighted_idx_node_coords[const.IDX_SNAPSHOT][
+                            node] += [
+                            idx_snapshot]
+
+            embedding_test_all += [embedding_test]
+
+        embedding_test_all = np.stack(embedding_test_all)
 
         colors = get_colors(len(projected_nodes))
         data = []
@@ -250,19 +322,21 @@ if __name__ == "__main__":
 
         dataframes = {}
 
-        for idx_node, node in enumerate(
+        for idx, node in enumerate(
                 tqdm(projected_nodes, desc=f"Adding trajectories")):
             num_total_snapshots = len(
                 highlighted_idx_node_coords[const.IDX_SNAPSHOT][node])
+
+            idx_node = node2idx[node]
 
             if len(highlighted_idx_node_coords['x'][node]) < 1 or len(
                     highlighted_idx_node_coords['y'][node]) < 1:
                 raise ValueError(f"{node} has no coordinates")
 
             hover_name = [f"Node: {node} | Snapshot: {snap}" for x, snap in
-                                 zip(highlighted_idx_node_coords[
-                                     const.IDX_SNAPSHOT][
-                                     node], snapshot_names)]
+                          zip(highlighted_idx_node_coords[
+                                  const.IDX_SNAPSHOT][
+                                  node], snapshot_names)]
 
             display_name = [f"{node} ({snap})" for i, (x, snap) in
                             enumerate(zip(highlighted_idx_node_coords[
@@ -272,21 +346,35 @@ if __name__ == "__main__":
             if len(snapshot_names) <= 10:
                 display_name = display_name
             elif len(snapshot_names) <= 20:
-                display_name = [name if i % 3 == 0 else "" for i, name in enumerate(display_name)]
+                display_name = [name if i % 3 == 0 else "" for i, name in
+                                enumerate(display_name)]
             else:
-                display_name = [name if i % 10 == 0 else "" for i, name in enumerate(display_name)]
+                display_name = [name if i % 10 == 0 else "" for i, name in
+                                enumerate(display_name)]
 
+            if DEBUG:
+                assert (node_presence[:, idx_node].nonzero()[0] ==
+                        highlighted_idx_node_coords[const.IDX_SNAPSHOT][
+                            node]).all()
 
+                assert (highlighted_idx_node_coords['x'][node] ==
+                        embedding_test_all[:, idx, 0][
+                            node_presence[:, idx_node]]).all()
+
+                assert (highlighted_idx_node_coords['y'][node] ==
+                        embedding_test_all[:, idx, 1][
+                            node_presence[:, idx_node]]).all()
 
             df = pd.DataFrame({
-                'x': highlighted_idx_node_coords['x'][node],
-                'y': highlighted_idx_node_coords['y'][node],
+                'x': embedding_test_all[:, idx, 0][
+                    node_presence[:, idx_node]],
+                'y': embedding_test_all[:, idx, 1][
+                    node_presence[:, idx_node]],
                 const.IDX_SNAPSHOT:
-                    highlighted_idx_node_coords[const.IDX_SNAPSHOT][
-                        node],
+                    node_presence[:, idx_node].nonzero()[0],
                 'display_name': display_name,
                 "hover_name": hover_name,
-                'node_color': [colors[idx_node]] * (num_total_snapshots),
+                'node_color': [colors[idx]] * (num_total_snapshots),
             }, index=np.arange(num_total_snapshots))
             df['node'] = node
 
@@ -299,10 +387,10 @@ if __name__ == "__main__":
 
             dataframes[str(node)] = df
 
-            if args.dataset_name == "Science2013Ant":
+            if dataset_name == "Science2013Ant":
                 projected_node_name = f"{node} ({annotation.get(node, '')})"
 
-            elif args.dataset_name == "DGraphFin":
+            elif dataset_name == "DGraphFin":
                 if node2label[node] == 0:
                     projected_node_name = f"{node} (Normal)"
 
@@ -330,10 +418,9 @@ if __name__ == "__main__":
             if len(fig_line.data) == 0:
                 continue
 
-
             try:
 
-                fig_line.data[0].line.color = colors[idx_node]
+                fig_line.data[0].line.color = colors[idx]
                 fig_line.data[0].line.width = 5
                 fig_line.data[0].marker.size = 20
 
@@ -345,8 +432,6 @@ if __name__ == "__main__":
 
             except:
                 traceback.print_exc()
-
-
 
             # data += fig_line.data
 
@@ -361,7 +446,7 @@ if __name__ == "__main__":
 
         # Too large to write to Excel
         if len(dataframes) >= 100:
-            with open(osp.join(args.visual_dir, f"{visualization_name}.pkl"),
+            with open(osp.join(visual_dir, f"{visualization_name}.pkl"),
                       'wb') as f:
                 pickle.dump(dataframes, f)
 
@@ -382,11 +467,18 @@ if __name__ == "__main__":
         )
 
         fig.write_html(
-            osp.join(args.visual_dir, f"Trajectory_{visualization_name}.html"))
+            osp.join(visual_dir, f"Trajectory_{visualization_name}.html"))
 
         """
         To load the plot, use:
-        fig = pio.read_json(osp.join(args.visual_dir, f"Trajectory_{visualization_name}.json"))
+        fig = pio.read_json(osp.join(visual_dir, f"Trajectory_{visualization_name}.json"))
         """
-        pio.write_json(fig, osp.join(args.visual_dir,
+        pio.write_json(fig, osp.join(visual_dir,
                                      f"Trajectory_{visualization_name}.json"))
+
+
+if __name__ == '__main__':
+    project_setup()
+    get_visualization_cache(dataset_name=args.dataset_name, device=args.device,
+                            model_name=args.model, visualization_dim=2,
+                            visualization_model_name=args.visualization_model)

@@ -13,7 +13,7 @@ from dygetviz.data.chickenpox import ChickenpoxDataset
 warnings.simplefilter(action='ignore', category=NumbaDeprecationWarning)
 
 
-def load_data(dataset_name=args.dataset_name) -> dict:
+def load_data(dataset_name: str, use_tgb: bool=False) -> dict:
     """
     :return: dict that contains the following fields
         z: np.ndarray of shape (num_nodes, num_timesteps, num_dims): node embeddings
@@ -22,20 +22,51 @@ def load_data(dataset_name=args.dataset_name) -> dict:
         node_presence: np.ndarray of shape (num_nodes, num_timesteps): 1 if node is present at timestep, 0 otherwise
     """
 
+    if use_tgb:
+        config_path = osp.join("config", f"TGBL.json")
 
 
-    config = json.load(
-        open(osp.join("config", f"{dataset_name}.json"), 'r',
-             encoding='utf-8'))
+    else:
+        config_path = osp.join("config", f"{dataset_name}.json")
 
-    z = np.load(
-        osp.join("data", dataset_name, f"embeds_{dataset_name}.npy"))
-    node2idx = json.load(
-        open(osp.join("data", dataset_name, "node2idx.json"), 'r',
-             encoding='utf-8'))
+    config = json.load(open(config_path, 'r', encoding='utf-8'))
+
+
+    try:
+        z = np.load(
+            osp.join("data", dataset_name, f"{config['model']}_embeds_{dataset_name}_Ep{config['epoch']}_Emb{config['emb_dim']}.npy"))
+
+
+    except:
+        z = np.load(
+            osp.join("data", dataset_name, f"embeds_{dataset_name}.npy"))
+
+    assert len(z.shape) == 3
+
+    path_node2idx = osp.join("data", dataset_name, "node2idx.json")
+
+    if osp.exists(path_node2idx):
+        print(f"Try loading node2idx.json from {path_node2idx}")
+        node2idx = json.load(open(path_node2idx, 'r', encoding='utf-8'))
+
+    else:
+        print(f"node2idx.json not found. Using integer node indices as node names.")
+        node2idx = {str(i): i for i in range(z.shape[1])}
+
+
     perplexity = config["perplexity"]
-    model_name = config["model_name"]
-    idx_reference_snapshot = config["idx_reference_snapshot"]
+    model_name = config["model"]
+
+
+    num_snapshots = config["num_snapshots"]
+    assert num_snapshots == z.shape[0]
+
+
+    idx_reference_snapshot = config.get("idx_reference_snapshot", None)
+
+    if idx_reference_snapshot is None:
+        print(f"idx_reference_snapshot not found in config. Assuming the last snapshot ({idx_reference_snapshot}) is the reference snapshot.")
+        idx_reference_snapshot = num_snapshots - 1
 
     # Optional argument
     # Whether to display node type (e.g. anomalous, normal)
@@ -44,22 +75,34 @@ def load_data(dataset_name=args.dataset_name) -> dict:
     num_nearest_neighbors = config.get("num_nearest_neighbors",
                                        [3, 5, 10, 20, 50])
 
-    snapshot_names = pd.read_csv(osp.join("data", args.dataset_name, f"snapshot_names.csv"))
-    snapshot_names = snapshot_names['snapshot'].values
+    path_snapshot_names = osp.join("data", dataset_name, "snapshot_names.csv")
+
+    if osp.exists(path_snapshot_names):
+        snapshot_names = pd.read_csv(path_snapshot_names)
+        snapshot_names = snapshot_names['snapshot'].values
+
+    else:
+        snapshot_names = np.arange(num_snapshots).astype(str)
 
     plot_anomaly_labels = False
 
-    try:
+    path_node2label = osp.join("data", dataset_name, "node2label.json")
+
+    if osp.exists(path_node2label):
         node2label = json.load(
             open(osp.join("data", dataset_name, "node2label.json"), 'r',
                  encoding='utf-8'))
 
-
-
-    except FileNotFoundError:
+    else:
         node2label = {}
 
-    if isinstance(config['reference_nodes'], str) and config[
+    if 'reference_nodes' not in config:
+        print("reference_nodes not found in config. Assuming all nodes are reference nodes.")
+        reference_nodes = np.array(list(node2idx.keys()))
+
+
+
+    elif isinstance(config['reference_nodes'], str) and config[
         'reference_nodes'].endswith("json"):
         reference_nodes = json.load(
             open(osp.join("data", dataset_name, config['reference_nodes']),
@@ -71,7 +114,23 @@ def load_data(dataset_name=args.dataset_name) -> dict:
     else:
         raise NotImplementedError
 
-    if isinstance(config['projected_nodes'], str) and config[
+
+    if 'projected_nodes' not in config:
+        print("projected_nodes not found in config. Sample 10 nodes to project.")
+        projected_nodes = np.random.choice(list(node2idx.keys()), replace=False, size=10)
+
+
+        if not projected_nodes.dtype == np.int64:
+            projected_nodes = projected_nodes.astype(int)
+            projected_nodes.sort()
+            projected_nodes = projected_nodes.astype(str)
+
+        else:
+            projected_nodes.sort()
+
+
+
+    elif isinstance(config['projected_nodes'], str) and config[
         'projected_nodes'].endswith("json"):
         projected_nodes = json.load(
             open(osp.join("data", dataset_name, config['projected_nodes']),
@@ -89,7 +148,7 @@ def load_data(dataset_name=args.dataset_name) -> dict:
     node_presence = None
 
     # Dataset-specific node profile
-    metadata_df = None # pd.DataFrame()
+    metadata_df = None
 
     highlighted_nodes = []
 
@@ -154,10 +213,10 @@ def load_data(dataset_name=args.dataset_name) -> dict:
         metadata_df = metadata_df.drop(
             columns=["summary", "lineage", "gene_type"])
 
-    elif args.dataset_name == "HistWords-CN-GNN":
+    elif dataset_name == "HistWords-CN-GNN":
 
         metadata_df = pd.read_csv(
-            osp.join("data", args.dataset_name, "metadata.csv"))
+            osp.join("data", dataset_name, "metadata.csv"))
 
 
 
@@ -174,9 +233,21 @@ def load_data(dataset_name=args.dataset_name) -> dict:
         label2node = {}
 
     if node_presence is None:
+
         try:
-            node_presence = np.load(
-                osp.join("data", dataset_name, "node_presence.npy"))
+
+            path_node_presence = osp.join("data", dataset_name, f"{config['model']}_node_presence_{dataset_name}_Ep{config['epoch']}_Emb{config['emb_dim']}.npy")
+            if osp.exists(path_node_presence):
+
+                print(f"Try loading node_presence.npy from {path_node_presence}")
+                node_presence = np.load(path_node_presence)
+
+            else:
+                node_presence = np.load(
+                    osp.join("data", dataset_name, "node_presence.npy"))
+
+
+            assert len(node_presence.shape) == 2
 
         except FileNotFoundError:
             print(
@@ -216,7 +287,7 @@ def load_data_dtdg(dataset_name: str):
 
     if dataset_name == "UNComtrade":
 
-        path = osp.join(args.cache_dir, f"full_dataset_{args.dataset_name}.pt")
+        path = osp.join(args.cache_dir, f"full_dataset_{dataset_name}.pt")
         full_dataset = UNComtradeDataset(args)
 
     elif dataset_name == "Chickenpox":

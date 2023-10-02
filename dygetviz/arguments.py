@@ -47,7 +47,7 @@ parser.add_argument('--device', type=str, default=DEFAULT_DEVICE,
                     help="Device to use. When using multi-gpu, this is the 'master' device where all operations are performed.")
 parser.add_argument('--device_viz', type=str, default=DEFAULT_DEVICE, help="Device to use for visualization")
 parser.add_argument('--do_test', type=bool, default=True)
-parser.add_argument('--do_val', type=bool, default=False)
+parser.add_argument('--do_val', type=bool, default=True)
 parser.add_argument('--do_weighted', action='store_true',
                     help="Construct weighted graph instead of multigraph for each graph snapshot")
 

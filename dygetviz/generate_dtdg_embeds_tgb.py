@@ -272,7 +272,7 @@ def test(assoc, data, device, device_viz, embeddings: torch.Tensor, embeds_li: l
     return perf_metrics, embeddings, node_presence
 
 
-def get_dynamic_graph_embeddings():
+def get_dynamic_graph_embeddings(dataset_name: str):
     args.model = "tgn"
     start_overall = timeit.default_timer()
 
@@ -283,7 +283,7 @@ def get_dynamic_graph_embeddings():
 
     print("INFO: Arguments:", tgb_args)
 
-    DATA = args.dataset_name
+    DATA = dataset_name
     print("INFO: Dataset:", DATA)
 
     LR = tgb_args.lr
@@ -508,12 +508,12 @@ def get_dynamic_graph_embeddings():
 
                 embeds_li = np.stack(embeds_li, axis=0)
 
-                os.makedirs(osp.join(args.data_dir, args.dataset_name),
+                os.makedirs(osp.join(args.data_dir, dataset_name),
                             exist_ok=True)
-                np.save(osp.join(args.data_dir, args.dataset_name,
-                                 f"{args.model}_embeds_{args.dataset_name}_Ep{epoch}_Emb{args.embedding_dim}.npy"),
+                np.save(osp.join(args.data_dir, dataset_name,
+                                 f"{args.model}_embeds_{dataset_name}_Ep{epoch}_Emb{args.embedding_dim}.npy"),
                         embeds_li)
-                np.save(osp.join(args.data_dir, args.dataset_name, f"{args.model}_node_presence_{args.dataset_name}_Ep{epoch}_Emb{args.embedding_dim}.npy"),
+                np.save(osp.join(args.data_dir, dataset_name, f"{args.model}_node_presence_{dataset_name}_Ep{epoch}_Emb{args.embedding_dim}.npy"),
                         node_presence_li)
 
                 print("Done!")
@@ -524,4 +524,7 @@ def get_dynamic_graph_embeddings():
 
 
 if __name__ == "__main__":
-    get_dynamic_graph_embeddings()
+    # For testing only
+    
+    
+    get_dynamic_graph_embeddings(args.dataset_name)
