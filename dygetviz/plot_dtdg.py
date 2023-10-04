@@ -123,7 +123,13 @@ if __name__ == "__main__":
         else:
             fields = []
 
-        fig_scatter = px.scatter(df_visual, x="x", y="y",
+        # Specify the number of animation frames (0 to n)
+        num_animation_frames = len(snapshot_names) - 1
+
+        # Create the static background DataFrame
+        background_df = pd.concat([df_visual] * (num_animation_frames + 1), ignore_index=True)
+        background_df[const.IDX_SNAPSHOT] = [frame_value for frame_value in range(num_animation_frames + 1) for _ in range(len(df_visual))]
+        fig_scatter = px.scatter(background_df, x="x", y="y",
                                  hover_data={
                                      f'hover_data_{i}': True for i, field in
                                      enumerate(fields)
@@ -131,6 +137,8 @@ if __name__ == "__main__":
                                  size="node_size",
                                  color='node_color', text="display_name",
                                  hover_name="node",
+                                animation_frame=const.IDX_SNAPSHOT,
+                                animation_group="node",
                                  title=f"{args.model}_{args.dataset_name}",
                                  log_x=False,
                                  opacity=0.7)
@@ -170,6 +178,10 @@ if __name__ == "__main__":
                 fig.data[i]['marker']['color'] = color
                 fig.data[i]['marker']['size'] = node_type_to_size[
                     node_type]
+            # Adding static background nodes to each frame
+            for i in range(len(fig.frames)):
+                fig.frames[i].data = fig.data
+                
             return fig
 
 
@@ -247,9 +259,12 @@ if __name__ == "__main__":
 
         for trace in fig_scatter.data:
             fig.add_trace(trace)
-
+        
+        # Copy over frames/layout from original, layout is for the UI
+        fig.frames = fig_scatter.frames
+        fig.layout = fig_scatter.layout
+        
         dataframes = {}
-
         for idx_node, node in enumerate(
                 tqdm(projected_nodes, desc=f"Adding trajectories")):
             num_total_snapshots = len(
@@ -319,20 +334,27 @@ if __name__ == "__main__":
             else:
                 projected_node_name = str(node)
 
+            # Traces in sequence 0-num_animation_frames
+            traces_of_line = [px.line(df.loc[0:i], x='x', y='y', hover_name='hover_name',
+                               text="display_name", 
+                               color='node_color', labels=df.loc[0:i]['node']).data[0] for i in range(num_animation_frames + 1)]
+
             fig_line = px.line(df, x='x', y='y', hover_name='hover_name',
-                               text="display_name", color='node_color',
-                               labels=df["node"],
-                               hover_data={
-                                   f'hover_data_{i}': True for i, field in
-                                   enumerate(fields)
-                               })
+                               text="display_name",
+                                 color='node_color',
+                               animation_frame=const.IDX_SNAPSHOT, animation_group='hover_name',
+                               labels=df["node"]
+                            #    hover_data={
+                            #        f'hover_data_{i}': True for i, field in
+                            #        enumerate(fields)
+                            #    }
+                               )
 
             if len(fig_line.data) == 0:
                 continue
 
 
             try:
-
                 fig_line.data[0].line.color = colors[idx_node]
                 fig_line.data[0].line.width = 5
                 fig_line.data[0].marker.size = 20
@@ -343,6 +365,22 @@ if __name__ == "__main__":
                 fig_line.data[0].hovertemplate = get_hovertemplate(
                     fields_in_customdata=fields, is_trajectory=True)
 
+                for frame in traces_of_line:
+                    frame.line.color = colors[idx_node]
+                    frame.line.width = 5
+                    frame.marker.size = 20
+
+                    # Change the displayed name in the legend
+                    frame['name'] = projected_node_name
+
+                    frame.hovertemplate = get_hovertemplate(
+                        fields_in_customdata=fields, is_trajectory=True)
+                    
+                # default frames are single points, need to rewrite them as lines up until that point
+                frames = [
+                    go.Frame(data=traces_of_line[i], name=str(i))
+                    for i in range(num_animation_frames + 1)]
+                fig_line.frames = frames  
             except:
                 traceback.print_exc()
 
@@ -354,6 +392,11 @@ if __name__ == "__main__":
 
             for trace in fig_line.data:
                 fig = fig.add_trace(trace)
+
+            frames = [
+                go.Frame(data=f.data + fig_line.frames[i].data, name=f.name)
+                for i, f in enumerate(fig.frames)]
+            fig.frames = frames  
 
         # Write all df's to Excel outside the loop
 
@@ -381,6 +424,14 @@ if __name__ == "__main__":
             yaxis_showgrid=True
         )
 
+        # fig.data = fig.frames[0].data
+        # Something goes wrong with the data in the initial set and they can't map properly to the frames, causing viz issues.
+        # Recreating the Figure with the first frame as the data
+        # for fig.frames[0].data
+        # Make everything not default displayed except the background and first two paths, or first one path if there is also anomoly cases
+        for data in fig.frames[0].data[3:]:
+            data.visible = 'legendonly'
+        fig = go.Figure(data=fig.frames[0].data, frames=fig.frames, layout=fig.layout)
         fig.write_html(
             osp.join(args.visual_dir, f"Trajectory_{visualization_name}.html"))
 
@@ -388,5 +439,8 @@ if __name__ == "__main__":
         To load the plot, use:
         fig = pio.read_json(osp.join(args.visual_dir, f"Trajectory_{visualization_name}.json"))
         """
+        print('writing json to: ', osp.join(args.visual_dir,
+                                     f"Trajectory_{visualization_name}.json"))
+        
         pio.write_json(fig, osp.join(args.visual_dir,
                                      f"Trajectory_{visualization_name}.json"))

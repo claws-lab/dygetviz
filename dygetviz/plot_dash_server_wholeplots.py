@@ -31,9 +31,9 @@ for dataset_name in dataset_names:
     print(f"Loading data for {dataset_name}...")
     data = load_data(dataset_name)
     visual_dir = osp.join(args.output_dir, "visual", dataset_name)
-    nodes, node2trace, label2colors, options, cached_frames, cached_layout = get_nodes_and_options(data, visual_dir)
+    nodes, node2trace, label2colors, options, cached_figure = get_nodes_and_options(data, visual_dir)
     # Can refactor this into one dict later...
-    dataset_data[dataset_name] = {"data": data, "nodes": nodes, "node2trace": node2trace, "label2colors": label2colors, "options": options, "cached_frames": cached_frames }
+    dataset_data[dataset_name] = {"data": data, "nodes": nodes, "node2trace": node2trace, "label2colors": label2colors,  "options": options, "cached_figure": cached_figure }
 
 print("Start the app ...")
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -136,39 +136,6 @@ app.layout = html.Div(
         dcc.Store(
             id='trajectory-names-store',
             data=[]),
-
-        # Yiqiao (2023.8.24): Now we do not consider the color picker since it will give the user too much freedom
-
-        # dbc.Row([
-        #     dbc.Col([
-        #         html.Label("Change Trajectory Color:"),
-        #         # Dropdown for selecting a node
-        #         dcc.Dropdown(
-        #             id='node-selector',
-        #             options=[],
-        #             value=nodes[0],
-        #             style={
-        #                 'width': '50%'
-        #             },
-        #         ),
-        #
-        #         # Store the nodes in `trajectory_names`
-        #         dcc.Store(
-        #             id='trajectory-names-store',
-        #             data=[]
-        #         ),
-        #
-        #         daq.ColorPicker(
-        #             id='color-picker',
-        #             label='Color Picker',
-        #             size=328,
-        #             value=dict(hex='#119DFF')
-        #         ),
-        #         html.Div(id='color-picker-output-1'),
-        #         html.Button('Update Node Color', id='update-color-button',
-        #                     n_clicks=0, className="me-2"),
-        #     ])
-        # ]),
         dbc.Row([
             dbc.Col([
                 html.H3(f"Dataset Introduction", className="text-center"),
@@ -256,7 +223,7 @@ def update_graph(dataset_name, trajectory_names, clickData, current_figure, traj
     # data = dataset_data[dataset_name]['data']
     
     global_store_data = dataset_data[dataset_name]
-    nodes, node2trace, label2colors, options, cached_frames, cached_layout = (global_store_data['nodes'], global_store_data['node2trace'], global_store_data['label2colors'], global_store_data['options'], global_store_data['cached_frames'], global_store_data['cached_layout'])
+    nodes, node2trace, label2colors, options, cached_figure = (global_store_data['nodes'], global_store_data['node2trace'], global_store_data['label2colors'], global_store_data['options'], global_store_data['cached_figure'])
     display_node_type: bool = global_store_data['data']["display_node_type"]
     node2label: dict = global_store_data['data']["node2label"]
     label2node: dict = global_store_data['data']["label2node"]
@@ -272,8 +239,9 @@ def update_graph(dataset_name, trajectory_names, clickData, current_figure, traj
     print(f"[Action]\t{action_name}")
     # This is the template for displaying metadata when hovering over a node
 
-    fig = go.Figure()
-    fig.layout = cached_layout
+
+    # fig = go.Figure(data=cached_figure.data, cached_figure.frames, cached_figure.layout)
+    fig = cached_figure
     fig.update_layout(
         plot_bgcolor='white',
         xaxis=dict(
@@ -288,19 +256,6 @@ def update_graph(dataset_name, trajectory_names, clickData, current_figure, traj
             showline=False,
             showticklabels=False
         ),
-        updatemenus=[
-                dict(
-                    type='buttons',
-                    buttons=[
-                        dict(
-                            label='Play',
-                            method='animate',
-                            args=[None]
-                        )
-                    ]
-                )
-            ]
-
     )
 
     if current_figure is None or action_name == 'dataset-selector':
@@ -315,9 +270,10 @@ def update_graph(dataset_name, trajectory_names, clickData, current_figure, traj
         
         Only add the background nodes
         """
-        add_background(fig, figure_name2trace, node2trace, plot_anomaly_labels, cached_frames)
+        fig = cached_figure
         
         # print(fig)
+
         return fig, trajectory_names, options, title
 
 
@@ -329,81 +285,8 @@ def update_graph(dataset_name, trajectory_names, clickData, current_figure, traj
 
         """
 
-        fig = go.Figure()
-        fig.update_layout(
-            plot_bgcolor='white',
-            xaxis=dict(
-                showgrid=False,
-                zeroline=False,
-                showline=False,
-                showticklabels=False
-            ),
-            yaxis=dict(
-                showgrid=False,
-                zeroline=False,
-                showline=False,
-                showticklabels=False
-            )
-        )
+        fig = cached_figure
 
-
-
-        del figure_name2trace['background']
-
-        add_background(fig, figure_name2trace, node2trace, plot_anomaly_labels, cached_frames)
-
-
-        new_trajectory_names = list(
-            set(trajectory_names) - set(figure_name2trace.keys()))
-
-        print(f"New search values:\t{new_trajectory_names}")
-        for idx, value in enumerate(tqdm(trajectory_names, desc="Add Trajectories")):
-
-            if args.dataset_name == "DGraphFin" and node2label.get(
-                    value) is None:
-                print(f"Node {value} is a background node, so we ignore it.")
-                continue
-
-            # Add a node from previous search
-
-            if value in figure_name2trace:
-                trace = figure_name2trace[value]
-                fig.add_trace(trace)
-
-            # Add a node
-            elif value in nodes:
-
-                trace = node2trace[value]
-                trace = convert_scatter_to_scattergl(trace)
-                if display_node_type:
-                    label = node2label[value]
-                    trace.line['color'] = label2colors[label][idx]
-                    print(f"\tAdd node:\t{value} ({label})")
-                else:
-                    trace.line['color'] = label2colors[0][idx]
-                    print(f"\tAdd node:\t{value}") 
-                
-                fig.add_trace(trace)
-
-
-            # Add a category
-            elif value in label2node:
-                print(f"\tAdd label:\t{value}")
-
-                for idx_node, node in enumerate(label2node[value]):
-                    trace = node2trace[node]
-                    print("trying to convert to scattergl3")
-                    trace = convert_scatter_to_scattergl(trace)
-                    trace.line['color'] = label2colors[value][idx_node % 12]
-                    fig.add_trace(trace)
-
-
-    # elif action_name == 'update-color-button':
-    #     # Update the color of the selected trajectory
-    #     del figure_name2trace['background']
-    #     figure_name2trace[selected_node].line['color'] = selected_color['hex']
-    #
-    #     add_traces()
 
 
     elif action_name == 'dygetviz':
@@ -427,9 +310,6 @@ def update_graph(dataset_name, trajectory_names, clickData, current_figure, traj
 
             node2trace['background']['text'] = tuple(displayed_text.tolist())
 
-            add_background(fig, figure_name2trace, node2trace, plot_anomaly_labels, cached_frames)
-
-            add_traces(fig, figure_name2trace)
 
         #     point_name = df['name'].iloc[idx]
         #
@@ -458,26 +338,6 @@ def update_graph(dataset_name, trajectory_names, clickData, current_figure, traj
 
     # print(fig)
     return fig, trajectory_names, trajectory_options, title
-
-# @app.callback(
-#     Output('node-selector', 'options'),
-#     Input('trajectory-names-store', 'data')
-# )
-# def update_node_selector_options(trajectory_names):
-#     """
-#     Archived function
-#     Adjust the colors of existing trajectories
-#
-#     :param trajectory_names:
-#     """
-#     if not trajectory_names:
-#         return []  # return an empty list if trajectory_names is empty
-#
-#     # return a list of options for nodes in trajectory_names
-#     return [{
-#         'label': node,
-#         'value': node
-#     } for node in trajectory_names]
 
 
 if __name__ == "__main__":

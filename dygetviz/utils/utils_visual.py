@@ -208,5 +208,6 @@ def get_nodes_and_options(data, visual_dir, visualization_model=const.TSNE):
 
     execution_time = end_time - start_time
     print(f"Function execution time: {execution_time} seconds")
+
     options = options_categories + options_nodes
-    return nodes, node2trace, label2colors, options
+    return nodes, node2trace, label2colors, options, fig_cached
