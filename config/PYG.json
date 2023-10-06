@@ -1,0 +1,15 @@
+{
+  "in_channels": 16,
+  "embedding_dim": 16,
+  "lr": 1e-3,
+  "batch_size": 256,
+  "do_node_classification": false,
+  "do_node_regression": true,
+  "do_edge_classification": false,
+  "do_edge_regression": false,
+  "do_link_prediction": false,
+  "transform_input": true
+
+
+
+}

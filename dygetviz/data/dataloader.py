@@ -1,16 +1,44 @@
 import json
+import os
 import os.path as osp
 import warnings
 
 import numpy as np
 import pandas as pd
 from numba import NumbaDeprecationWarning
+from torch_geometric_temporal import ChickenpoxDatasetLoader, \
+    EnglandCovidDatasetLoader, METRLADatasetLoader, MontevideoBusDatasetLoader, \
+    PedalMeDatasetLoader, WikiMathsDatasetLoader, \
+    WindmillOutputLargeDatasetLoader, WindmillOutputMediumDatasetLoader, \
+    WindmillOutputSmallDatasetLoader, PemsBayDatasetLoader, \
+    TwitterTennisDatasetLoader
 
 from arguments import args
+from data.download import download_file_from_google_drive
 
 from dygetviz.data.chickenpox import ChickenpoxDataset
 
 warnings.simplefilter(action='ignore', category=NumbaDeprecationWarning)
+
+
+NAME2DATASET_LOADER = {
+    "Chickenpox": ChickenpoxDatasetLoader,
+    "EnglandCovid": EnglandCovidDatasetLoader,
+    "METRLA": METRLADatasetLoader, #  As of Oct. 2023, this dataset cannot be retrieved
+    "MontevideoBus": MontevideoBusDatasetLoader,
+    "PedalMe": PedalMeDatasetLoader,
+    "PemsBay": PemsBayDatasetLoader,
+    "TwitterTennisrg17": TwitterTennisDatasetLoader,
+    "TwitterTennisuo17": TwitterTennisDatasetLoader,
+    "WikiMaths": WikiMathsDatasetLoader,
+    "WindmillLarge": WindmillOutputLargeDatasetLoader,
+    "WindmillMedium": WindmillOutputMediumDatasetLoader,
+
+    "WindmillSmall": WindmillOutputSmallDatasetLoader,
+
+
+
+}
 
 
 def load_data(dataset_name: str, use_tgb: bool=False) -> dict:
@@ -279,22 +307,60 @@ def load_data(dataset_name: str, use_tgb: bool=False) -> dict:
 
 
 
-def load_data_dtdg(dataset_name: str):
+def load_data_dtdg(dataset_name: str, use_pyg: bool=False) -> tuple:
     """
     Load data for embedding training on Discrete-Time Dynamic-Graph (DTDG) models.
     """
     from torch_geometric_temporal.signal import temporal_signal_split
 
-    if dataset_name == "UNComtrade":
 
-        path = osp.join(args.cache_dir, f"full_dataset_{dataset_name}.pt")
-        full_dataset = UNComtradeDataset(args)
 
-    elif dataset_name == "Chickenpox":
-        full_dataset = ChickenpoxDataset(args)
 
+    if use_pyg:
+
+        print(f"Using PyG-Temporal {dataset_name} dataset.")
+
+        assert dataset_name in NAME2DATASET_LOADER, f"Invalid dataset name {dataset_name} for pytorch-geometric-temporal."
+
+        os.makedirs("pygt_data", exist_ok=True)
+
+        if not osp.exists(osp.join("pygt_data", f"{dataset_name}.json")):
+
+            download_file_from_google_drive()
+
+
+        if dataset_name == "metrla":
+            loader = METRLADatasetLoader(raw_data_dir="/tmp/")
+            full_dataset = loader.get_dataset(num_timesteps_in=6,
+                                         num_timesteps_out=5)
+            
+        elif dataset_name == "twittertennisrg17":
+            # Roland - Garros 2017("rg17")
+            # TOOD: Not sure what "mode" means here
+            loader = TwitterTennisDatasetLoader("rg17", 1000, None)
+            full_dataset = loader.get_dataset()
+            
+        elif dataset_name == "twittertennisuo17":
+            loader = TwitterTennisDatasetLoader("rg17", 1000, None)
+            # USOpen 2017("uo17")
+            full_dataset = loader.get_dataset()
+            
+        else:
+            loader = NAME2DATASET_LOADER[dataset_name]()
+            full_dataset = loader.get_dataset()
+            
     else:
-        raise NotImplementedError
+
+        if dataset_name == "UNComtrade":
+    
+            path = osp.join(args.cache_dir, f"full_dataset_{dataset_name}.pt")
+            full_dataset = UNComtradeDataset(args)
+    
+        elif dataset_name == "Chickenpox":
+            full_dataset = ChickenpoxDataset(args)
+    
+        else:
+            raise NotImplementedError
 
     train_dataset, test_dataset = temporal_signal_split(full_dataset,
                                                         train_ratio=1.)

@@ -70,12 +70,17 @@ def dot_product_batch(a: torch.Tensor, b: torch.Tensor, batch_size=16384,
 def get_training_args(config: dict):
     training_args = {}
 
+
+    is_training_objective_set = False
     for field in ["do_node_classification",
                   "do_node_regression",
                   "do_edge_classification",
                   "do_edge_regression",
                   "do_link_prediction"]:
         training_args[field] = config.get(field, False)
+        is_training_objective_set = is_training_objective_set or training_args[field]
+
+    assert is_training_objective_set, "At least one training objective must be specified"
 
     for field in ["num_classes_nodes",
                   "num_classes_edges"]:

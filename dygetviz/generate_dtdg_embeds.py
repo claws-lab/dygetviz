@@ -1,4 +1,9 @@
+"""Train TGB embeddings using pytorch-geometric-temporal
+
+"""
+
 import json
+import os
 import os.path as osp
 
 import numpy as np
@@ -7,156 +12,200 @@ from torch import nn
 from torch.optim.lr_scheduler import StepLR
 from tqdm import trange
 
-from arguments import args
+# import torch_geometric_temporal as pygt
+
 from dygetviz.data.dataloader import load_data_dtdg
 from dygetviz.model.recurrentgcn import RecurrentGCN
 from dygetviz.utils.utils_misc import project_setup
 from dygetviz.utils.utils_training import get_training_args
 
-project_setup()
-train_dataset, test_dataset, full_dataset = load_data_dtdg(args.dataset_name)
 
-config = json.load(
-    open(osp.join("config", f"{args.dataset_name}.json"), 'r',
-         encoding='utf-8'))
+def train_dynamic_graph_embeds_pyg(dataset_name, device, embedding_dim: int,
+                                   epochs: int, lr: float, model_name: str,
+                                   save_every: int,
+                                   step_size: int = 50, use_pyg=True):
+    r"""Train dynamic graph embeddings using the torch-geometric-temporal package
 
-training_args = get_training_args(config)
+    Args:
+        dataset_name (str): Name of the dataset
+        device (str): Device for embedding training
+        embedding_dim (int): Dimension of the embedding
+        epochs (int): Number of epochs to train
+        lr (float): Learning rate
 
-# if args.dataset_name in ["DGraphFin"]:
-#     model = RecurrentGCN(node_features=args.in_channels,
-#                          hidden_dim=args.embedding_dim,
-#                          transform_input=args.transform_input,
-#                          num_classes_nodes=2, num_classes_edges=11)
-#
-# elif args.dataset_name in ["BMCBioinformatics2021"]:
-#     model = RecurrentGCN(node_features=args.in_channels,
-#                          hidden_dim=args.embedding_dim,
-#                          transform_input=args.transform_input,
-#                          num_classes_nodes=2)
-#
-#
-# else:
-model = RecurrentGCN(model=args.model,
-                     node_features=args.in_channels,
-                     hidden_dim=args.embedding_dim,
-                     transform_input=args.transform_input, **training_args)
-
-model.to(args.device)
-
-optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-scheduler = StepLR(optimizer, step_size=50, gamma=0.9)
+        save_every (int): How many epochs to perform evaluation and sae the embeddings
 
 
-def train(epoch, embeds_li: list):
-    model.train()
-    scheduler.step()
 
-    if epoch % args.step_size == 0:
-        print(f"Epoch: {epoch}, LR: {scheduler.get_lr()}")
+    Returns:
 
-    cost = 0
-    node_mask = None
+    """
 
-    for idx_snapshot, snapshot in enumerate(train_dataset):
-        log_str = f"\tEp.{epoch}\tIter{idx_snapshot}"
-        snapshot = snapshot.to(args.device)
+    # ROOT_PYG = osp.dirname(pygt.__file__)
 
-        h_0 = model.get_embedding(snapshot.x, snapshot.edge_index,
-                                  snapshot.edge_attr, snapshot.y)
+    {
 
-        # if "node_classification" in args.tasks:
-        #     y_hat = model(h_0)
-        #
-        #     if args.dataset_name == "DGraphFin":
-        #
-        #         if idx_snapshot == len(full_dataset) - 1:
-        #             mask = (snapshot.y == 0) | (snapshot.y == 1)
-        #             loss_link_pred = torch.mean((y_hat[mask] - snapshot.y[mask]) ** 2)
-        #
-        #         else:
-        #             loss_link_pred = 0.
-        #
-        #     else:
-        #         loss_link_pred = torch.mean((y_hat - snapshot.y) ** 2)
-        #
-        #
-        #     emb = h_0
-        #
-        #
-        #     cost += loss_link_pred
+        "chickenpox": "1u0VDqcn6Nn__k57FYdIX-QWZ2gD53H31",
+        "wikivital_mathematics": "Yk5KJRXjNfRQBzJtbvMsovjV2qQQOTj",
+        "twitter_tennis_uo17": "16qKaHv5FpZg_eKQLohEXFCklieOr7QC5",
+        "twitter_tennis_rg17": "14GSXJYKNy9Hl14KeOPAY18qhdJQMI_vd",
 
-        if training_args["do_link_prediction"]:
-            # if args.dataset_name == "BMCBioinformatics2021" and idx_snapshot != len(
-            #         full_dataset) - 1:
-            #     # Only do link prediction in the last snapshot, since the edges are static
-            #     loss_link_pred = 0.
+    }
 
-            # else:
 
-            nodes = snapshot.edge_index.unique().cpu()
-            nodes = nodes.numpy().reshape(-1)
-            neg_target = np.random.choice(nodes,
-                                          size=snapshot.edge_index.shape[1])
-            neg_target = torch.tensor(neg_target, dtype=torch.long,
-                                      device=args.device)
 
-            pos_score = model.link_prediction(h_0, snapshot.edge_index[0],
-                                              snapshot.edge_index[1])
-            neg_score = -model.link_prediction(h_0, snapshot.edge_index[0],
-                                               neg_target)
 
-            loss_link_pred = model.bceloss(pos_score,
-                                           torch.ones_like(
-                                               pos_score)) + model.bceloss(
-                neg_score, torch.ones_like(neg_score))
+    train_dataset, test_dataset, full_dataset = load_data_dtdg(dataset_name,
+                                                               use_pyg=use_pyg)
 
-            log_str += f"\tLink: {loss_link_pred.item():.3f}"
+    if use_pyg:
+        path_config = osp.join("config", f"PYG.json")
 
-            cost += loss_link_pred
+    else:
+        path_config = osp.join("config", f"{dataset_name}.json")
 
-        # Transform the embedding from the model's output
-        if training_args["do_node_regression"] or training_args[
-            "do_edge_regression"] or training_args["do_node_classification"] or \
-                training_args["do_edge_classification"]:
-            out, h_1 = model.transform_output(h_0)
-            emb = h_1
+    config = json.load(open(path_config, 'r', encoding='utf-8'))
 
-        if training_args["do_node_regression"]:
-            pred_node = model.node_output_layer(out)
+    if use_pyg:
+        in_channels = train_dataset.features[0].shape[1]
 
-            loss_node_regression = torch.mean(
-                (pred_node[snapshot.node_mask] - snapshot.y[
-                    snapshot.node_mask]) ** 2)
+    else:
+        in_channels = config["in_channels"]
 
-            cost += loss_node_regression * 0.1
+    training_args = get_training_args(config)
 
-            log_str += f"\tNode Reg: {loss_node_regression.item():.3f}"
+    # if dataset_name in ["DGraphFin"]:
+    #     model = RecurrentGCN(node_features=in_channels,
+    #                          hidden_dim=embedding_dim,
+    #                          transform_input=transform_input,
+    #                          num_classes_nodes=2, num_classes_edges=11)
+    #
+    # elif dataset_name in ["BMCBioinformatics2021"]:
+    #     model = RecurrentGCN(node_features=in_channels,
+    #                          hidden_dim=embedding_dim,
+    #                          transform_input=transform_input,
+    #                          num_classes_nodes=2)
+    #
+    #
+    # else:
 
-        if training_args["do_edge_regression"]:
-            # Edge Regression
-            edge_features = torch.cat(
-                [out[snapshot.edge_index[0]], out[snapshot.edge_index[1]]],
-                dim=1)
-            pred_edge = model.edge_output_layer(edge_features)
+    transform_input = in_channels != embedding_dim
+    model = RecurrentGCN(model=model_name,
+                         node_features=in_channels,
+                         hidden_dim=embedding_dim,
+                         transform_input=transform_input, device=device,
+                         **training_args)
 
-            loss_edge_regression = torch.mean(
-                (pred_edge.squeeze(1) - snapshot.edge_attr) ** 2)
+    model.to(device)
 
-            cost += loss_edge_regression * 0.1
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    scheduler = StepLR(optimizer, step_size=step_size, gamma=0.9)
 
-            log_str += f"\tEdge Reg: {loss_edge_regression.item():.3f}"
+    def train_one_epoch(epoch: int, embeds_li: list):
+        model.train()
+        scheduler.step()
 
-        if training_args["do_node_classification"]:
+        if epoch % step_size == 0:
+            print(f"Epoch: {epoch}, LR: {scheduler.get_lr()}")
 
-            # if False:
-            if args.dataset_name in ["DGraphFin", "BMCBioinformatics2021"]:
+        cost = 0
+        node_mask = None
 
-                if idx_snapshot == len(full_dataset) - 1:
+        for idx_snapshot, snapshot in enumerate(train_dataset):
+            log_str = f"\tEp.{epoch}\tIter{idx_snapshot}"
+            snapshot = snapshot.to(device)
 
+            node_mask = torch.ones(snapshot.num_nodes,
+                                   dtype=torch.bool) if not hasattr(snapshot,
+                                                                    "node_mask") else snapshot.node_mask
+
+            h_0 = model.get_embedding(snapshot.x, snapshot.edge_index,
+                                      snapshot.edge_attr, snapshot.y)
+
+            if training_args["do_link_prediction"]:
+                nodes = snapshot.edge_index.unique().cpu()
+                nodes = nodes.numpy().reshape(-1)
+                neg_target = np.random.choice(nodes,
+                                              size=snapshot.edge_index.shape[1])
+                neg_target = torch.tensor(neg_target, dtype=torch.long,
+                                          device=device)
+
+                pos_score = model.link_prediction(h_0, snapshot.edge_index[0],
+                                                  snapshot.edge_index[1])
+                neg_score = -model.link_prediction(h_0, snapshot.edge_index[0],
+                                                   neg_target)
+
+                loss_link_pred = model.bceloss(pos_score,
+                                               torch.ones_like(
+                                                   pos_score)) + model.bceloss(
+                    neg_score, torch.ones_like(neg_score))
+
+                log_str += f"\tLink: {loss_link_pred.item():.3f}"
+
+                cost += loss_link_pred
+
+            # Transform the embedding from the model's output
+            if training_args["do_node_regression"] or training_args[
+                "do_edge_regression"] or training_args[
+                "do_node_classification"] or \
+                    training_args["do_edge_classification"]:
+                out, h_1 = model.transform_output(h_0)
+                emb = h_1
+
+            if training_args["do_node_regression"]:
+                pred_node = model.node_output_layer(out)
+
+                loss_node_regression = torch.mean(
+                    (pred_node[node_mask] - snapshot.y[
+                        node_mask]) ** 2)
+
+                cost += loss_node_regression * 0.1
+
+                log_str += f"\tNode Reg: {loss_node_regression.item():.3f}"
+
+            if training_args["do_edge_regression"]:
+                edge_features = torch.cat(
+                    [out[snapshot.edge_index[0]], out[snapshot.edge_index[1]]],
+                    dim=1)
+                pred_edge = model.edge_output_layer(edge_features)
+
+                loss_edge_regression = torch.mean(
+                    (pred_edge.squeeze(1) - snapshot.edge_attr) ** 2)
+
+                cost += loss_edge_regression * 0.1
+
+                log_str += f"\tEdge Reg: {loss_edge_regression.item():.3f}"
+
+            if training_args["do_node_classification"]:
+
+                # if False:
+                if dataset_name in ["DGraphFin", "BMCBioinformatics2021"]:
+
+                    if idx_snapshot == len(full_dataset) - 1:
+
+                        node_mask = node_mask if node_mask is not None else (
+                                                                                    snapshot.y == 0) | (
+                                                                                    snapshot.y == 1)
+
+                        pred_node = model.node_output_layer(out[node_mask])
+
+                        loss_node_classification = nn.BCELoss()(pred_node,
+                                                                snapshot.y[
+                                                                    node_mask])
+
+                        cost += loss_node_classification * 1.
+
+                        log_str += f"\tNode Cls: {loss_node_classification.item():.3f}"
+
+                    else:
+
+                        loss_node_classification = 0.
+
+
+                else:
                     node_mask = node_mask if node_mask is not None else (
                                                                                 snapshot.y == 0) | (
                                                                                 snapshot.y == 1)
-
                     pred_node = model.node_output_layer(out[node_mask])
 
                     loss_node_classification = nn.BCELoss()(pred_node,
@@ -167,63 +216,68 @@ def train(epoch, embeds_li: list):
 
                     log_str += f"\tNode Cls: {loss_node_classification.item():.3f}"
 
-                else:
+            if training_args["do_edge_classification"] or training_args[
+                "do_edge_regression"]:
+                edge_score = model.edge_output_layer(out, snapshot.edge_index)
 
-                    loss_node_classification = 0.
+                # For DGraphFin, edge_type is in 1 - 11
+                edge_type = snapshot.edge_type - 1 if dataset_name == "DGraphFin" else snapshot.edge_type
+                loss_edge_classification = nn.NLLLoss()(edge_score, edge_type)
+
+                cost += loss_edge_classification * 1.
+
+                log_str += f"\tEdge Cls: {loss_edge_classification.item():.3f}"
+
+            # print(log_str)
+            if (epoch + 1) % save_every == 0:
+                embeds_li += [emb.detach().cpu().numpy()]
+
+        cost = cost / (idx_snapshot + 1)
+        total_loss = cost.item()
+        cost.backward()
+
+        optimizer.step()
+        optimizer.zero_grad()
+
+        return total_loss
+
+    cache_dir = osp.join("data", dataset_name)
+    os.makedirs(cache_dir, exist_ok=True)
+
+    pbar = trange(1, epochs + 1, desc='Train', leave=True)
+
+    for epoch in pbar:
+
+        # Store the embeddings at each epoch
+        embeds_li = []
+        loss = train_one_epoch(epoch, embeds_li)
+        pbar.set_postfix({
+            "epoch": epoch,
+            "loss": "{:.3f}".format(loss)
+
+        })
+
+        if (epoch + 1) % save_every == 0:
+            embeds: np.ndarray = np.stack([emb for emb in embeds_li])
+            del embeds_li
+            print(f"[Embeds] Saving embeddings for Ep. {epoch + 1} with shape {embeds.shape} ...")
+            np.save(osp.join(cache_dir,
+                             f"{model_name}_embeds_{dataset_name}_Ep{epoch + 1}_Emb{embedding_dim}.npy"),
+                    embeds)
 
 
-            else:
-                node_mask = node_mask if node_mask is not None else (
-                                                                            snapshot.y == 0) | (
-                                                                            snapshot.y == 1)
-                pred_node = model.node_output_layer(out[node_mask])
+if __name__ == '__main__':
+    from arguments import args
 
-                loss_node_classification = nn.BCELoss()(pred_node,
-                                                        snapshot.y[node_mask])
+    project_setup()
 
-                cost += loss_node_classification * 1.
+    dataset_name: str = args.dataset_name
+    device: str = args.device
+    embedding_dim: int = args.embedding_dim
+    epochs: int = args.epochs
+    save_every = args.eval_every
+    lr: float = args.lr
+    model_name: str = args.model
 
-                log_str += f"\tNode Cls: {loss_node_classification.item():.3f}"
-
-        if training_args["do_edge_classification"] or training_args[
-            "do_edge_regression"]:
-            edge_score = model.edge_output_layer(out, snapshot.edge_index)
-
-            # For DGraphFin, edge_type is in 1 - 11
-            edge_type = snapshot.edge_type - 1 if args.dataset_name == "DGraphFin" else snapshot.edge_type
-            loss_edge_classification = nn.NLLLoss()(edge_score, edge_type)
-
-            cost += loss_edge_classification * 1.
-
-            log_str += f"\tEdge Cls: {loss_edge_classification.item():.3f}"
-
-
-
-        # print(log_str)
-        if (epoch + 1) % args.eval_every == 0:
-            embeds_li += [emb.detach().cpu().numpy()]
-
-    cost = cost / (idx_snapshot + 1)
-    total_loss = cost.item()
-    cost.backward()
-
-    print(f"[Train] Ep.{epoch + 1}\tLoss: {total_loss:.4f}")
-
-    optimizer.step()
-    optimizer.zero_grad()
-
-
-for epoch in trange(args.epochs):
-
-    # Store the embeddings at each epoch
-    embeds_li = []
-    train(epoch, embeds_li)
-
-    if (epoch + 1) % args.eval_every == 0:
-        embeds: np.ndarray = np.stack([emb for emb in embeds_li])
-        del embeds_li
-        print(embeds.shape)
-        print(f"[Embeds] Saving embeddings for Ep. {epoch + 1} ...")
-        np.save(osp.join(args.cache_dir,
-                         f"{args.model}_embeds_{args.dataset_name}_Ep{epoch + 1}_Emb{args.embedding_dim}.npy"),
-                embeds)
+    train_dynamic_graph_embeds_pyg(dataset_name, device, embedding_dim,
+                                   epochs, lr, model_name, save_every)

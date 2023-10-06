@@ -433,14 +433,11 @@ def get_visualization_cache(dataset_name: str, device: str, model_name: str,
             except:
                 traceback.print_exc()
 
-            # data += fig_line.data
-
-            # fig_scatter.add_trace(fig_line)
 
             for trace in fig_line.data:
                 fig = fig.add_trace(trace)
 
-        # Write all df's to Excel outside the loop
+        # Write all pd.Dataframe's to Excel outside the loop
 
         mode = 'a' if osp.exists(path_coords) else 'w'
 
@@ -475,6 +472,8 @@ def get_visualization_cache(dataset_name: str, device: str, model_name: str,
         """
         pio.write_json(fig, osp.join(visual_dir,
                                      f"Trajectory_{visualization_name}.json"))
+
+        return fig
 
 
 if __name__ == '__main__':

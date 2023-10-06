@@ -272,7 +272,7 @@ def test(assoc, data, device, device_viz, embeddings: torch.Tensor, embeds_li: l
     return perf_metrics, embeddings, node_presence
 
 
-def get_dynamic_graph_embeddings(dataset_name: str):
+def train_dynamic_graph_embeds_tgb(dataset_name: str):
     args.model = "tgn"
     start_overall = timeit.default_timer()
 
@@ -527,4 +527,4 @@ if __name__ == "__main__":
     # For testing only
     
     
-    get_dynamic_graph_embeddings(args.dataset_name)
+    train_dynamic_graph_embeds_tgb(args.dataset_name)

@@ -69,9 +69,9 @@ class RecurrentGCN(nn.Module):
                 nn.ReLU(),
                 nn.Dropout(0.1),
                 nn.Linear(hidden_dim, hidden_dim),
-            )
+            ).to(device)
 
-        self.recurrent = MODEL2CLASS[model](hidden_dim, hidden_dim, 1)
+        self.recurrent = MODEL2CLASS[model](hidden_dim, hidden_dim, 1).to(device)
 
 
         # TODO
