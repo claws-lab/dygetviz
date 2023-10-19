@@ -1,11 +1,21 @@
+import logging
+
 import torch
 import torch.nn.functional as F
 from torch import nn
 from torch_geometric_temporal import GConvGRU
 
+from utils.utils_logging import configure_default_logging
+
+
+# TODO: Add more models
 MODEL2CLASS = {
     "GConvGRU": GConvGRU,
 }
+
+configure_default_logging()
+logger = logging.getLogger(__name__)
+
 
 
 class RecurrentGCN(nn.Module):

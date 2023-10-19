@@ -22,21 +22,18 @@ warnings.simplefilter(action='ignore', category=NumbaDeprecationWarning)
 
 
 NAME2DATASET_LOADER = {
-    "Chickenpox": ChickenpoxDatasetLoader,
-    "EnglandCovid": EnglandCovidDatasetLoader,
-    "METRLA": METRLADatasetLoader, #  As of Oct. 2023, this dataset cannot be retrieved
-    "MontevideoBus": MontevideoBusDatasetLoader,
-    "PedalMe": PedalMeDatasetLoader,
-    "PemsBay": PemsBayDatasetLoader,
-    "TwitterTennisrg17": TwitterTennisDatasetLoader,
-    "TwitterTennisuo17": TwitterTennisDatasetLoader,
-    "WikiMaths": WikiMathsDatasetLoader,
-    "WindmillLarge": WindmillOutputLargeDatasetLoader,
-    "WindmillMedium": WindmillOutputMediumDatasetLoader,
-
-    "WindmillSmall": WindmillOutputSmallDatasetLoader,
-
-
+    "chickenpox": ChickenpoxDatasetLoader,
+    "england_covid": EnglandCovidDatasetLoader,
+    "metrla": METRLADatasetLoader, #  As of Oct. 2023, this dataset cannot be retrieved
+    "montevideo_bus": MontevideoBusDatasetLoader,
+    "pedalme_london": PedalMeDatasetLoader,
+    "pemsbay": PemsBayDatasetLoader,
+    "twitter_tennis_uo17": TwitterTennisDatasetLoader,
+    "twitter_tennis_rg17": TwitterTennisDatasetLoader,
+    "wikivital_mathematics": WikiMathsDatasetLoader,
+    "windmill_large": WindmillOutputLargeDatasetLoader,
+    "windmill_medium": WindmillOutputMediumDatasetLoader,
+    "windmill_small": WindmillOutputSmallDatasetLoader,
 
 }
 
@@ -324,23 +321,18 @@ def load_data_dtdg(dataset_name: str, use_pyg: bool=False) -> tuple:
 
         os.makedirs("pygt_data", exist_ok=True)
 
-        if not osp.exists(osp.join("pygt_data", f"{dataset_name}.json")):
-
-            download_file_from_google_drive()
-
-
         if dataset_name == "metrla":
             loader = METRLADatasetLoader(raw_data_dir="/tmp/")
             full_dataset = loader.get_dataset(num_timesteps_in=6,
                                          num_timesteps_out=5)
             
-        elif dataset_name == "twittertennisrg17":
+        elif dataset_name == "twitter_tennis_rg17":
             # Roland - Garros 2017("rg17")
             # TOOD: Not sure what "mode" means here
             loader = TwitterTennisDatasetLoader("rg17", 1000, None)
             full_dataset = loader.get_dataset()
             
-        elif dataset_name == "twittertennisuo17":
+        elif dataset_name == "twitter_tennis_uo17":
             loader = TwitterTennisDatasetLoader("rg17", 1000, None)
             # USOpen 2017("uo17")
             full_dataset = loader.get_dataset()

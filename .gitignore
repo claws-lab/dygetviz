@@ -56,3 +56,5 @@ pycache/
 *.npy
 *.graphml
 /dygetiviz/demo/
+dygetiviz/data/
+dygetviz/data/chickenpox/chickenpox.json

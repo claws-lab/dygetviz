@@ -1,8 +1,14 @@
+import logging
 import os
 import os.path as osp
 import random
 
 import numpy as np
+
+from utils.utils_logging import configure_default_logging
+
+configure_default_logging()
+logger = logging.getLogger(__name__)
 
 
 def project_setup():
@@ -39,5 +45,5 @@ def get_visualization_name(dataset_name, model_name,
 def get_GPU_memory_allocated_to_tensor(t):
     # calculate the GPU memory occupied by t
     memory_in_MB = t.element_size() * t.nelement() / 1024 / 1024
-    print(f"Tensor occupies {memory_in_MB:.2f} MB of GPU memory.")
+    logger.info(f"Tensor occupies {memory_in_MB:.2f} MB of GPU memory.")
     return memory_in_MB

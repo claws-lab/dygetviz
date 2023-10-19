@@ -1,3 +1,11 @@
+"""Download files from Google Drive.
+
+Note: As of Oct. 2023, Google Drive uses special mechanisms to detech
+suspicious or unusual download activity. In those cases, it requests a login to verify that the
+download request is legitimate. This script does not handle that case.
+"""
+
+
 import requests
 
 def download_file_from_google_drive(file_id, destination):
@@ -39,7 +47,15 @@ def save_response_content(response, destination):
                 f.write(chunk)
 
 
+def download_from_GitHub(url: str, destination: str):
+
+    response = requests.get(url)
+    with open(destination, "wb") as file:
+        file.write(response.content)
+
+
 if __name__ == "__main__":
+    "https://drive.google.com/file/d/1u0VDqcn6Nn__k57FYdIX-QWZ2gD53H31/view?usp=drive_link"
 
     file_id = "1gPbI37ZbIRHJTN5w9MVvs4YZj5N1Ntlf"  # Get this from the Google Drive share link
     destination = "data"  # Local path where you want to save the file

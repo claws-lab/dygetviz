@@ -1,9 +1,14 @@
 import json
+import logging
 import os
 import os.path as osp
 import traceback
 from typing import Union
 
+from utils.utils_logging import configure_default_logging
+
+configure_default_logging()
+logger = logging.getLogger(__name__)
 
 
 
@@ -52,9 +57,9 @@ def dump_and_check(d: Union[list, dict], outdir: str, max_tries: int = 10):
 
         except Exception as e:
             num_retries += 1
-            print(
+            logger.error(
                 f"[ERROR] Dumping or reloading failed, retrying {num_retries}...")
-            print(outdir)
+            logger.error(outdir)
             traceback.print_exc()
             if num_retries >= max_tries:
                 exit(1)
@@ -64,6 +69,6 @@ def get_modified_time_of_file(path):
     model_metadata = pathlib.Path(path).stat()
     mtime = datetime.datetime.fromtimestamp(model_metadata.st_mtime)
     ctime = datetime.datetime.fromtimestamp(model_metadata.st_ctime)
-    print(f"\t{osp.basename(path)}: modified {mtime} | created {ctime}")
+    logger.info(f"\t{osp.basename(path)}: modified {mtime} | created {ctime}")
     return mtime, ctime
 

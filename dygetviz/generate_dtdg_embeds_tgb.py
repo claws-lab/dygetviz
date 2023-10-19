@@ -50,11 +50,14 @@ def train(args, assoc, criterion, data, device, device_viz, embeds_li: list, epo
     Training procedure for TGN model
     This function uses some objects that are globally defined in the current scrips 
 
-    Parameters:
-        None
+
     Returns:
-        node_presence: the latest node presence vector (whether the node has appeared in the latest snapshot)
-            
+        total_loss / train_data.num_events
+        embeddings (np.ndarray): the latest node embeddings for visualization
+        node_presence (np.ndarray): the latest node presence vector (whether
+        the node has appeared in the latest snapshot). We need this for the
+        embedding generation of the next snapshot.
+
     """
 
     model['memory'].train()

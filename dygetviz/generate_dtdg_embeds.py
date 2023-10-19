@@ -3,6 +3,7 @@
 """
 
 import json
+import logging
 import os
 import os.path as osp
 
@@ -12,18 +13,23 @@ from torch import nn
 from torch.optim.lr_scheduler import StepLR
 from tqdm import trange
 
-# import torch_geometric_temporal as pygt
-
+from data.download import download_file_from_google_drive, download_from_GitHub
 from dygetviz.data.dataloader import load_data_dtdg
 from dygetviz.model.recurrentgcn import RecurrentGCN
 from dygetviz.utils.utils_misc import project_setup
 from dygetviz.utils.utils_training import get_training_args
+from utils.utils_logging import configure_default_logging
+
+# import torch_geometric_temporal as pygt
+
+configure_default_logging()
+logger = logging.getLogger(__name__)
 
 
-def train_dynamic_graph_embeds_pyg(dataset_name, device, embedding_dim: int,
-                                   epochs: int, lr: float, model_name: str,
-                                   save_every: int,
-                                   step_size: int = 50, use_pyg=True):
+def train_dynamic_graph_embeds(dataset_name, device, embedding_dim: int,
+                               epochs: int, lr: float, model_name: str,
+                               save_every: int,
+                               step_size: int = 50, use_pyg=True):
     r"""Train dynamic graph embeddings using the torch-geometric-temporal package
 
     Args:
@@ -34,6 +40,9 @@ def train_dynamic_graph_embeds_pyg(dataset_name, device, embedding_dim: int,
         lr (float): Learning rate
 
         save_every (int): How many epochs to perform evaluation and sae the embeddings
+        use_pyg (bool): Whether to use the datasets in
+        pytorch-geometric-temporal
+        package
 
 
 
@@ -43,17 +52,37 @@ def train_dynamic_graph_embeds_pyg(dataset_name, device, embedding_dim: int,
 
     # ROOT_PYG = osp.dirname(pygt.__file__)
 
-    {
-
+    DATASET_NAME2GOOGLE_LINK = {
         "chickenpox": "1u0VDqcn6Nn__k57FYdIX-QWZ2gD53H31",
-        "wikivital_mathematics": "Yk5KJRXjNfRQBzJtbvMsovjV2qQQOTj",
+        "england_covid": "10w-rEdZ_FuSLMbRsYttZIbJEZnYz0XNv",
+        "montevideo_bus": "1NQlvofuZNT8C3EDTlyxWPrRGOg-xF_jv",
+        "mtm_1": "18UvEl3uUCx5L_LuvMgJfnggTrfe-wQdL",
+        "pedalme_london": "1RxpPhdJ4xk8SYd2pARiga6TIza8JXlys",
         "twitter_tennis_uo17": "16qKaHv5FpZg_eKQLohEXFCklieOr7QC5",
         "twitter_tennis_rg17": "14GSXJYKNy9Hl14KeOPAY18qhdJQMI_vd",
-
+        "wikivital_mathematics": "Yk5KJRXjNfRQBzJtbvMsovjV2qQQOTj",
     }
 
+    if dataset_name in DATASET_NAME2GOOGLE_LINK:
+        os.makedirs(osp.join("data", dataset_name), exist_ok=True)
+
+        url = (f"https://raw.githubusercontent.com/benedekrozemberczki"
+               f"/pytorch_geometric_temporal/master/dataset/{dataset_name}.json")
+
+        download_from_GitHub(url, osp.join("data", dataset_name,
+                                f"{dataset_name}_pyg_metadata.json"))
+
+        # Downloading from Google Drive is not recommended. Switched to
+        # downloading from pytorch-geometric-temporal package
+
+        # download_file_from_google_drive(DATASET_NAME2GOOGLE_LINK[dataset_name],
+        #                         osp.join("data", dataset_name,
+        #                         f"{dataset_name}_pyg_metadata.json"))
 
 
+    else:
+        logger.warning(f"Metadata of dataset '{dataset_name}' not found in "
+                       f"Google Drive.")
 
     train_dataset, test_dataset, full_dataset = load_data_dtdg(dataset_name,
                                                                use_pyg=use_pyg)
@@ -106,7 +135,7 @@ def train_dynamic_graph_embeds_pyg(dataset_name, device, embedding_dim: int,
         scheduler.step()
 
         if epoch % step_size == 0:
-            print(f"Epoch: {epoch}, LR: {scheduler.get_lr()}")
+            logger.info(f"Epoch: {epoch}, LR: {scheduler.get_lr()}")
 
         cost = 0
         node_mask = None
@@ -228,7 +257,7 @@ def train_dynamic_graph_embeds_pyg(dataset_name, device, embedding_dim: int,
 
                 log_str += f"\tEdge Cls: {loss_edge_classification.item():.3f}"
 
-            # print(log_str)
+            # logger.info(log_str)
             if (epoch + 1) % save_every == 0:
                 embeds_li += [emb.detach().cpu().numpy()]
 
@@ -260,7 +289,8 @@ def train_dynamic_graph_embeds_pyg(dataset_name, device, embedding_dim: int,
         if (epoch + 1) % save_every == 0:
             embeds: np.ndarray = np.stack([emb for emb in embeds_li])
             del embeds_li
-            print(f"[Embeds] Saving embeddings for Ep. {epoch + 1} with shape {embeds.shape} ...")
+            logger.info(
+                f"[Embeds] Saving embeddings for Ep. {epoch + 1} with shape {embeds.shape} ...")
             np.save(osp.join(cache_dir,
                              f"{model_name}_embeds_{dataset_name}_Ep{epoch + 1}_Emb{embedding_dim}.npy"),
                     embeds)
@@ -279,5 +309,5 @@ if __name__ == '__main__':
     lr: float = args.lr
     model_name: str = args.model
 
-    train_dynamic_graph_embeds_pyg(dataset_name, device, embedding_dim,
-                                   epochs, lr, model_name, save_every)
+    train_dynamic_graph_embeds(dataset_name, device, embedding_dim,
+                               epochs, lr, model_name, save_every)
