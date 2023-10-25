@@ -8,6 +8,7 @@ command for an example run:
 """
 import argparse
 import json
+import logging
 import os
 import os.path as osp
 import timeit
@@ -30,34 +31,47 @@ from model.tgb_modules.memory_module import TGNMemory
 from model.tgb_modules.msg_agg import LastAggregator
 from model.tgb_modules.msg_func import IdentityMessage
 from model.tgb_modules.neighbor_loader import LastNeighborLoader
+from utils.utils_logging import configure_default_logging
 
-# internal imports
+configure_default_logging()
+logger = logging.getLogger(__name__)
 
 # Use the CPU as a fallback for GPU-only operations.
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
-
-
-# ==========
-# ========== Define helper function...
-# ==========
 
 def train(args, assoc, criterion, data, device, device_viz, embeds_li: list, epoch: int,
           max_dst_idx: int,
           min_dst_idx: int, model, neighbor_loader, node_presence_li, optimizer,
           snapshot_indices, store_embeds: bool,
           train_data, train_loader, ):
-    r"""
-    Training procedure for TGN model
-    This function uses some objects that are globally defined in the current scrips 
+    r"""Trains the Temporal Graph Networks (TGN) model for 1 epoch.
 
+    Save embeddings if necessary.
+
+    Args:
+        args (Namespace): Arguments parsed from the command line.
+        assoc (Tensor): The association tensor mapping node IDs to their index.
+        criterion (Loss Function): The loss function to use.
+        data (Data): Graph data.
+        device (torch.device): Device to perform computations.
+        device_viz (torch.device): Device to store visualization data.
+        embeds_li (list): List to store node embeddings.
+        epoch (int): Current training epoch.
+        max_dst_idx (int): Maximum destination index for negative sampling.
+        min_dst_idx (int): Minimum destination index for negative sampling.
+        model (dict): Dictionary containing model components ('memory', 'gnn', 'link_pred').
+        neighbor_loader (DataLoader): DataLoader for neighbors.
+        node_presence_li (list): List to store node presence information.
+        optimizer (Optimizer): Optimizer to use.
+        snapshot_indices (list): List of snapshot indices for embedding storage.
+        store_embeds (bool): Whether to store embeddings for visualization.
+        train_data (Data): Training data.
+        train_loader (DataLoader): DataLoader for training data.
 
     Returns:
-        total_loss / train_data.num_events
-        embeddings (np.ndarray): the latest node embeddings for visualization
-        node_presence (np.ndarray): the latest node presence vector (whether
-        the node has appeared in the latest snapshot). We need this for the
-        embedding generation of the next snapshot.
-
+        float: Average loss over the number of events.
+        np.ndarray: Latest node embeddings for visualization, if 'store_embeds' is True.
+        np.ndarray: Latest node presence vector, if 'store_embeds' is True.
     """
 
     model['memory'].train()
@@ -119,7 +133,7 @@ def train(args, assoc, criterion, data, device, device_viz, embeds_li: list, epo
             # The number of node present in the snapshot should be non-decreasing.
             node_presence[n_id] = True
 
-            # print(node_presence[idx_snapshot].sum())
+            # logger.info(node_presence[idx_snapshot].sum())
             if idx_batch + 1 == snapshot_indices[idx_snapshot]:
                 # We are starting a new snapshot.
                 embeds_li += [embeddings.detach().cpu().numpy()]
@@ -127,8 +141,8 @@ def train(args, assoc, criterion, data, device, device_viz, embeds_li: list, epo
 
                 idx_snapshot += 1
 
-
-                print(f"[Epoch ({epoch})]: {idx_snapshot}-th snapshot (#Nodes={node_presence.sum().item()}) saved at batch {idx_batch}.")
+                logger.info(
+                    f"[Epoch {epoch}]: {idx_snapshot}-th snapshot (#Nodes={node_presence.sum().item()}) saved at batch {idx_batch}.")
 
                 # All nodes present in the prev snapshot is considered present in the next snapshot.
                 # node_presence[idx_snapshot + 1] = node_presence[idx_snapshot]
@@ -152,8 +166,10 @@ def train(args, assoc, criterion, data, device, device_viz, embeds_li: list, epo
 
 
 @torch.no_grad()
-def test(assoc, data, device, device_viz, embeddings: torch.Tensor, embeds_li: list, epoch:int, evaluator, loader, metric, model, neg_sampler,
-         neighbor_loader, node_presence: torch.Tensor, node_presence_li: List[np.ndarray], snapshot_indices, split_mode: str, start_batch_index:int, store_embeds: bool):
+def test(assoc, data, device, device_viz, embeddings: torch.Tensor, embeds_li: list, epoch: int, evaluator, loader,
+         metric, model, neg_sampler,
+         neighbor_loader, node_presence: torch.Tensor, node_presence_li: List[np.ndarray], snapshot_indices,
+         split_mode: str, start_batch_index: int, store_embeds: bool):
     r"""
     Evaluated the dynamic link prediction
     Evaluation happens as 'one vs. many', meaning that each positive edge is evaluated against many negative edges
@@ -172,7 +188,6 @@ def test(assoc, data, device, device_viz, embeddings: torch.Tensor, embeds_li: l
     Returns:
         perf_metric: the result of the performance evaluaiton
     """
-
 
     model['memory'].eval()
     model['gnn'].eval()
@@ -232,24 +247,21 @@ def test(assoc, data, device, device_viz, embeddings: torch.Tensor, embeds_li: l
                 # The number of node present in the snapshot should be non-decreasing.
                 node_presence[n_id] = True
 
-                # print(node_presence[idx_snapshot].sum())
+                # logger.info(node_presence[idx_snapshot].sum())
                 # Pad by the number of batches in the training set
                 # For test, we will add #batches in the validation set)
-                if idx_snapshot < len(snapshot_indices) and idx_batch + start_batch_index + 1 == snapshot_indices[idx_snapshot]:
+                if idx_snapshot < len(snapshot_indices) and idx_batch + start_batch_index + 1 == snapshot_indices[
+                    idx_snapshot]:
                     # We are starting a new snapshot.
                     embeds_li += [embeddings.detach().cpu().numpy()]
                     node_presence_li += [node_presence.detach().cpu().numpy()]
                     idx_snapshot += 1
 
-
-
-                    print(
+                    logger.info(
                         f"[Epoch ({epoch})]: {idx_snapshot}-th snapshot (#Nodes={node_presence.sum().item()}) saved at batch {idx_batch + start_batch_index}.")
 
                     # All nodes present in the prev snapshot is considered present in the next snapshot.
                     # node_presence[idx_snapshot + 1] = node_presence[idx_snapshot]
-
-
 
             y_pred = model['link_pred'](z[assoc[src]], z[assoc[dst]])
 
@@ -276,6 +288,20 @@ def test(assoc, data, device, device_viz, embeddings: torch.Tensor, embeds_li: l
 
 
 def train_dynamic_graph_embeds_tgb(dataset_name: str):
+    r"""Trains dynamic graph embeddings using the TGN model.
+
+    This function launches the training of dynamic graph embeddings
+    using the Temporal Graph Networks (TGN) model.
+
+    Args:
+        dataset_name (str): Name of the dataset.
+
+    Note:
+        The function uses global variable `args` for some of the parameters.
+
+    """
+
+
     args.model = "tgn"
     start_overall = timeit.default_timer()
 
@@ -284,15 +310,13 @@ def train_dynamic_graph_embeds_tgb(dataset_name: str):
     tgb_args = argparse.Namespace(
         **json.load(open(osp.join("config", 'TGBL.json'))))
 
-    print("INFO: Arguments:", tgb_args)
+    logger.info("INFO: Arguments:", tgb_args)
 
     DATA = dataset_name
-    print("INFO: Dataset:", DATA)
+    logger.info("INFO: Dataset:", DATA)
 
     LR = tgb_args.lr
     BATCH_SIZE = tgb_args.bs
-    K_VALUE = tgb_args.k_value
-    NUM_EPOCH = tgb_args.num_epoch
     SEED = tgb_args.seed
     MEM_DIM = tgb_args.mem_dim
     TIME_DIM = tgb_args.time_dim
@@ -311,9 +335,17 @@ def train_dynamic_graph_embeds_tgb(dataset_name: str):
 
     # data loading
     dataset = PyGLinkPropPredDataset(name=DATA, root="datasets")
-    train_mask = dataset.train_mask
-    val_mask = dataset.val_mask
-    test_mask = dataset.test_mask
+
+    mask = torch.zeros_like(dataset.edge_label, dtype=torch.bool)
+    train_mask = mask.clone()
+    val_mask = mask.clone()
+    test_mask = mask.clone()
+
+    N = dataset.edge_label.shape[0]
+    train_mask[:int(args.train_size * N)] = True
+    val_mask[int(args.train_size * N): int((args.train_size + args.val_size) * N)] = True
+    test_mask[int((args.train_size + args.val_size) * N):] = True
+
     data = dataset.get_TemporalData()
 
     # Extra step for Mac OS X: Convert dtype to float64
@@ -372,10 +404,10 @@ def train_dynamic_graph_embeds_tgb(dataset_name: str):
     # Helper vector to map global node indices to local ones.
     assoc = torch.empty(data.num_nodes, dtype=torch.long, device=device)
 
-    print("==========================================================")
-    print(
+    logger.info("==========================================================")
+    logger.info(
         f"=================*** {MODEL_NAME}: LinkPropPred: {DATA} ***=============")
-    print("==========================================================")
+    logger.info("==========================================================")
 
     evaluator = Evaluator(name=DATA)
     neg_sampler = dataset.negative_sampler
@@ -384,14 +416,14 @@ def train_dynamic_graph_embeds_tgb(dataset_name: str):
     results_path = f'saved_results'
     if not osp.exists(results_path):
         os.mkdir(results_path)
-        print('INFO: Create directory {}'.format(results_path))
+        logger.info('INFO: Create directory {}'.format(results_path))
     Path(results_path).mkdir(parents=True, exist_ok=True)
     results_filename = f'{results_path}/{MODEL_NAME}_{DATA}_results.json'
 
     for run_idx in range(NUM_RUNS):
-        print(
+        logger.info(
             '-------------------------------------------------------------------------------')
-        print(f"INFO: >>>>> Run: {run_idx} <<<<<")
+        logger.info(f"INFO: >>>>> Run: {run_idx} <<<<<")
         start_run = timeit.default_timer()
 
         # set the seed for deterministic results...
@@ -422,39 +454,43 @@ def train_dynamic_graph_embeds_tgb(dataset_name: str):
         if args.do_test:
             num_batches += len(test_loader)
 
-
-        print(f"INFO: #batches={num_batches}")
+        logger.info(f"INFO: #batches={num_batches}")
         snapshot_indices = torch.linspace(0, num_batches,
                                           args.num_snapshots + 1,
                                           dtype=int)
 
-        for epoch in trange(1, NUM_EPOCH + 1, desc="Train"):
+        for epoch in trange(1, args.epochs + 1, desc="Train"):
             # training
             embeds_li, node_presence_li = [], []
             start_epoch_train = timeit.default_timer()
 
             store_embeds = epoch % args.save_embeds_every == 0
             loss, latest_embeddings, latest_node_presence = train(args, assoc, criterion,
-                         data, device, device_viz,
-                         embeds_li, epoch,
-                         max_dst_idx, min_dst_idx,
-                         model, neighbor_loader,
-                         node_presence_li,
-                         optimizer, snapshot_indices, store_embeds,
-                         train_data, train_loader)
-            print(
+                                                                  data, device, device_viz,
+                                                                  embeds_li, epoch,
+                                                                  max_dst_idx, min_dst_idx,
+                                                                  model, neighbor_loader,
+                                                                  node_presence_li,
+                                                                  optimizer, snapshot_indices, store_embeds,
+                                                                  train_data, train_loader)
+            logger.info(
                 f"Epoch: {epoch:02d}, Loss: {loss:.4f}, Training elapsed Time (s): {timeit.default_timer() - start_epoch_train: .4f}"
             )
 
             if args.do_val:
                 # validation
                 start_val = timeit.default_timer()
-                perf_metric_val, latest_embeddings, latest_node_presence = test(assoc, data, device, device_viz, latest_embeddings, embeds_li, epoch, evaluator,
-                                       val_loader, metric, model, neg_sampler,
-                                       neighbor_loader, latest_node_presence, node_presence_li, snapshot_indices,
-                                       "val", start_batch_index=len(train_loader), store_embeds=store_embeds)
-                print(f"\tValidation {metric}: {perf_metric_val: .4f}")
-                print(
+                perf_metric_val, latest_embeddings, latest_node_presence = test(assoc, data, device, device_viz,
+                                                                                latest_embeddings, embeds_li, epoch,
+                                                                                evaluator,
+                                                                                val_loader, metric, model, neg_sampler,
+                                                                                neighbor_loader, latest_node_presence,
+                                                                                node_presence_li, snapshot_indices,
+                                                                                "val",
+                                                                                start_batch_index=len(train_loader),
+                                                                                store_embeds=store_embeds)
+                logger.info(f"\tValidation {metric}: {perf_metric_val: .4f}")
+                logger.info(
                     f"\tValidation: Elapsed time (s): {timeit.default_timer() - start_val: .4f}")
                 val_perf_list.append(perf_metric_val)
 
@@ -464,7 +500,7 @@ def train_dynamic_graph_embeds_tgb(dataset_name: str):
 
             # Here we put the test code inside the training loop to save the embeddings, different from the original implementation
             train_val_time = timeit.default_timer() - start_train_val
-            print(
+            logger.info(
                 f"Train & Validation: Elapsed Time (s): {train_val_time: .4f}")
 
             if args.do_test:
@@ -477,15 +513,20 @@ def train_dynamic_graph_embeds_tgb(dataset_name: str):
 
                 # final testing
                 start_test = timeit.default_timer()
-                perf_metric_test, latest_embeddings, latest_node_presence = test(assoc, data, device, device_viz, latest_embeddings, embeds_li, epoch, evaluator,
-                                        test_loader, metric, model, neg_sampler,
-                                        neighbor_loader, latest_node_presence, node_presence_li, snapshot_indices,
-                                        "test", start_batch_index=len(train_loader) + len(val_loader), store_embeds=store_embeds)
+                perf_metric_test, latest_embeddings, latest_node_presence = test(assoc, data, device, device_viz,
+                                                                                 latest_embeddings, embeds_li, epoch,
+                                                                                 evaluator,
+                                                                                 test_loader, metric, model,
+                                                                                 neg_sampler,
+                                                                                 neighbor_loader, latest_node_presence,
+                                                                                 node_presence_li, snapshot_indices,
+                                                                                 "test", start_batch_index=len(
+                        train_loader) + len(val_loader), store_embeds=store_embeds)
 
-                print(f"INFO: Test: Evaluation Setting: >>> ONE-VS-MANY <<< ")
-                print(f"\tTest: {metric}: {perf_metric_test: .4f}")
+                logger.info(f"INFO: Test: Evaluation Setting: >>> ONE-VS-MANY <<< ")
+                logger.info(f"\tTest: {metric}: {perf_metric_test: .4f}")
                 test_time = timeit.default_timer() - start_test
-                print(f"\tTest: Elapsed Time (s): {test_time: .4f}")
+                logger.info(f"\tTest: Elapsed Time (s): {test_time: .4f}")
 
                 save_results({'model': MODEL_NAME,
                               'data': DATA,
@@ -500,13 +541,12 @@ def train_dynamic_graph_embeds_tgb(dataset_name: str):
 
             del latest_embeddings, latest_node_presence
 
-            print(
+            logger.info(
                 f"INFO: >>>>> Run: {run_idx}, elapsed time: {timeit.default_timer() - start_run: .4f} <<<<<")
-            print('-' * 30)
-
+            logger.info('-' * 30)
 
             if epoch % args.save_embeds_every == 0:
-                print(f"[Embeds] Saving embeddings for Ep. {epoch} ...",
+                logger.info(f"[Embeds] Saving embeddings for Ep. {epoch} ...",
                       end=" ")
 
                 embeds_li = np.stack(embeds_li, axis=0)
@@ -516,18 +556,15 @@ def train_dynamic_graph_embeds_tgb(dataset_name: str):
                 np.save(osp.join(args.data_dir, dataset_name,
                                  f"{args.model}_embeds_{dataset_name}_Ep{epoch}_Emb{args.embedding_dim}.npy"),
                         embeds_li)
-                np.save(osp.join(args.data_dir, dataset_name, f"{args.model}_node_presence_{dataset_name}_Ep{epoch}_Emb{args.embedding_dim}.npy"),
+                np.save(osp.join(args.data_dir, dataset_name,
+                                 f"{args.model}_node_presence_{dataset_name}_Emb{args.embedding_dim}.npy"),
                         node_presence_li)
 
-                print("Done!")
+                logger.info("Done!")
 
-    print(
+    logger.info(
         f"Overall Elapsed Time (s): {timeit.default_timer() - start_overall: .4f}")
-    print("==============================================================")
 
 
 if __name__ == "__main__":
-    # For testing only
-    
-    
     train_dynamic_graph_embeds_tgb(args.dataset_name)

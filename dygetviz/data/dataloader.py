@@ -40,11 +40,40 @@ NAME2DATASET_LOADER = {
 
 def load_data(dataset_name: str, use_tgb: bool=False) -> dict:
     """
-    :return: dict that contains the following fields
-        z: np.ndarray of shape (num_nodes, num_timesteps, num_dims): node embeddings
-        ys: np.ndarray of shape (num_nodes, num_timesteps): node labels
-        node2idx: dict that maps node name to node index
-        node_presence: np.ndarray of shape (num_nodes, num_timesteps): 1 if node is present at timestep, 0 otherwise
+    Loads data for dynamic node embedding trajectory visualization.
+
+    Args:
+        dataset_name (str): Name of the dataset to load.
+        use_tgb (bool, optional): Whether to load a [Temporal Graph Benchmark(TGB)](https://tgb.complexdatalab.com/) dataset
+
+    Returns:
+        dict: A dictionary containing various fields:
+            - 'dataset_name' (str): Name of the loaded dataset.
+            - 'model_name' (str): Model name from the configuration.
+            - 'display_node_type' (bool): Whether to display the node type.
+            - 'highlighted_nodes' (list): List of nodes to be highlighted.
+            - 'idx_reference_snapshot' (int): Index of the reference snapshot.
+            - 'interpolation' (float): Interpolation parameter.
+            - 'label2name' (dict): Mapping of label indices to label names.
+            - 'label2node' (dict): Mapping of label indices to nodes.
+            - 'metadata_df' (DataFrame or None): Metadata DataFrame if available.
+            - 'node2idx' (dict): Mapping of node names to node indices.
+            - 'node2label' (dict): Mapping of node names to labels.
+            - 'node_presence' (np.ndarray or None): Binary array indicating node presence at each timestep.
+            - 'num_nearest_neighbors' (list): List of numbers specifying the nearest neighbors for each node.
+            - 'perplexity' (float): Perplexity parameter in t-SNE.
+            - 'plot_anomaly_labels' (bool): Whether to plot anomaly labels, e.g. a user is a fake news spreader v.s.
+            a normal user, a  gene is aging--related v.s. not.
+            - 'projected_nodes' (np.ndarray): Array of nodes to be projected.
+            - 'reference_nodes' (np.ndarray): Array of nodes in the reference frame.
+            - 'snapshot_names' (np.ndarray or list): Names or indices of snapshots.
+            - 'z' (np.ndarray): Node embeddings of shape (num_nodes, num_timesteps, num_dims).
+
+    Raises:
+        NotImplementedError: If the 'reference_nodes' or 'projected_nodes' format in the config is not supported.
+        AssertionError: If the dimensions of loaded 'z' or 'node_presence' are incorrect.
+        FileNotFoundError: If 'node_presence' file is not found and defaults have to be used.
+
     """
 
     if use_tgb:
@@ -59,7 +88,8 @@ def load_data(dataset_name: str, use_tgb: bool=False) -> dict:
 
     try:
         z = np.load(
-            osp.join("data", dataset_name, f"{config['model']}_embeds_{dataset_name}_Ep{config['epoch']}_Emb{config['emb_dim']}.npy"))
+            osp.join("data", dataset_name, f"{config['model_name']}_embeds_{dataset_name}_Ep{config['epoch']}_Em"
+                                           f"b{config['emb_dim']}.npy"))
 
 
     except:
@@ -80,11 +110,9 @@ def load_data(dataset_name: str, use_tgb: bool=False) -> dict:
 
 
     perplexity = config["perplexity"]
-    model_name = config["model"]
+    model_name = config["model_name"]
 
-
-    num_snapshots = config["num_snapshots"]
-    assert num_snapshots == z.shape[0]
+    num_snapshots = z.shape[0]
 
 
     idx_reference_snapshot = config.get("idx_reference_snapshot", None)
@@ -261,13 +289,17 @@ def load_data(dataset_name: str, use_tgb: bool=False) -> dict:
 
         try:
 
-            path_node_presence = osp.join("data", dataset_name, f"{config['model']}_node_presence_{dataset_name}_Ep{config['epoch']}_Emb{config['emb_dim']}.npy")
-            if osp.exists(path_node_presence):
+            node_presence = None
 
-                print(f"Try loading node_presence.npy from {path_node_presence}")
-                node_presence = np.load(path_node_presence)
+            if "epoch" in config:
 
-            else:
+                path_node_presence = osp.join("data", dataset_name, f"{config['model_name']}_node_presence_{dataset_name}_Emb{config['emb_dim']}.npy")
+                if osp.exists(path_node_presence):
+
+                    print(f"Try loading node_presence.npy from {path_node_presence}")
+                    node_presence = np.load(path_node_presence)
+
+            if node_presence is None:
                 node_presence = np.load(
                     osp.join("data", dataset_name, "node_presence.npy"))
 

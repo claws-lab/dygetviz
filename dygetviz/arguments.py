@@ -1,9 +1,14 @@
 import argparse
+import logging
 import os
 import os.path as osp
 
 import const
 from const import *
+from utils.utils_logging import configure_default_logging
+
+configure_default_logging()
+logger = logging.getLogger(__name__)
 
 if platform.system() in ["Windows", "Linux"]:
     import torch
@@ -21,7 +26,7 @@ elif platform.system() == "Darwin":
 else:
     raise NotImplementedError("Unknown System")
 
-print(f"Your system: {platform.system()}. Default device: {DEFAULT_DEVICE}")
+logger.info(f"Your system: {platform.system()}. Default device: {DEFAULT_DEVICE}")
 
 parser = argparse.ArgumentParser(
     description="Dynamic Graph Embedding Trajectory.")
@@ -46,8 +51,6 @@ parser.add_argument('--dataset_name', type=str, default='Chickenpox',
 parser.add_argument('--device', type=str, default=DEFAULT_DEVICE,
                     help="Device to use. When using multi-gpu, this is the 'master' device where all operations are performed.")
 parser.add_argument('--device_viz', type=str, default=DEFAULT_DEVICE, help="Device to use for visualization")
-parser.add_argument('--do_test', type=bool, default=True)
-parser.add_argument('--do_val', type=bool, default=True)
 parser.add_argument('--do_weighted', action='store_true',
                     help="Construct weighted graph instead of multigraph for each graph snapshot")
 
@@ -129,7 +132,8 @@ parser.add_argument('--num_sample_resource', type=int, default=-1,
 parser.add_argument('--num_sample_author', type=int, default=-1,
                     help="Number of resource to sample in our dataset. Set to -1 if we do not want to sample")
 
-parser.add_argument('--num_snapshots', type=int, default=10, help="Number of snapshots to use for Continuous-Time Dynamic Graph models, such as TGN")
+parser.add_argument('--num_snapshots', type=int, default=10,
+                    help="Number of snapshots to use for Continuous-Time Dynamic Graph models, such as TGN")
 
 parser.add_argument('--port', type=int, default=8050)
 
@@ -141,15 +145,13 @@ parser.add_argument('--save_model_every', type=int, default=-1,
 parser.add_argument('--seed', type=int, default=42, help="Random seed.")
 parser.add_argument('--step_size', type=int, default=50, help="step size")
 parser.add_argument('--task', type=str, default="", help="task_name")
-parser.add_argument('--test_size', type=float, default=0.1, help="")
+parser.add_argument('--test_size', type=float, default=0.1, help="Size of the test set. Note that running "
+                                                                 "test can be slow")
 parser.add_argument('--train_neg_sampling_ratio', type=int, default=1,
                     help="How many negative examples to sample for each positive example in training?")
-parser.add_argument('--train_sample_method', type=str,
-                    choices=[RANDOM, PER_INTERACTION, EXCLUDE_POSITIVE],
-                    default=RANDOM,
-                    help="Negative sampling method for training dataset")
 
-parser.add_argument('--val_size', type=float, default=0.1, help="")
+parser.add_argument('--val_size', type=float, default=0., help="Size of the validation set. Note that running "
+                                                               "validation can be slow")
 parser.add_argument('--verbose', action='store_true', help="")
 
 parser.add_argument('--snapshot_interval', type=int, default=1,
@@ -179,9 +181,23 @@ if args.in_channels is None:
     args.in_channels = args.embedding_dim
 args.num_nearest_neighbors = eval(args.num_nearest_neighbors)
 
+if args.test_size > 0.:
+    args.do_test = True
+else:
+    args.do_test = False
+
+if args.val_size > 0.:
+    args.do_val = True
+else:
+    args.do_val = False
+
+args.train_size = 1 - args.test_size - args.val_size
+
 args.visual_dir = osp.join(args.output_dir, "visual", args.dataset_name)
 os.makedirs(args.visual_dir, exist_ok=True)
 
 args.transform_input = args.in_channels != args.embedding_dim
 args.tasks = eval(args.tasks)
-print(args.tasks)
+logger.info(f"Splitting dataset into: Train ({args.train_size}), Val ({args.val_size}), "
+            f"Test ({args.test_size}). \t")
+logger.info(args.tasks)

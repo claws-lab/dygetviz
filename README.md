@@ -7,7 +7,21 @@ Our framework is DyGETViz, which stands for **Dynamic Graph Embedding Trajectori
 
 ## Installation
 
-### Install the Dependencies
+Create a new conda environment:
+
+```bash
+conda create -n dygetviz python=3.9
+conda activate dygetviz
+````
+
+To install the dependencies, run:
+
+```bash
+pip install -r requirements.txt
+````
+
+
+If you want to manually install the dependencies, run:
 
 ```bash
 conda install scikit-learn pandas numpy matplotlib plotly
@@ -76,6 +90,49 @@ python dygetviz/plot_dtdg.py --dataset_name Chickenpox --model GConvGRU
 
 python dygetviz/plot_dash.py --dataset_name Chickenpox --model GConvGRU
 ```
+
+## Data Format
+
+dygetviz supports all [temporal networks](https://snap.stanford.edu/data/index.html#temporal) in [Stanford Large Network Dataset Collection] (https://snap.stanford.edu/data/index.html). Basically, each row is a tuple of (source, target, timestamp) representing an edge in the graph snapshot, 
+
+edges.tsv
+
+```angular2html
+SRC	DST	TIME
+1	2	1082040961
+3	4	1082155839
+5	2	1082414391
+6	7	1082439619
+8	7	1082439756
+9	10	1082440403
+...
+```
+
+An optional **nodes.tsv** can be provided to indicate the node names. If not provided, the node names will be automatically generated as integers starting from 0.
+
+```angular2html
+ID  NAME
+0   Anna
+1   Bob
+2   Charlie
+3   David
+4   Emma
+...
+```
+
+You can also specify an additional column to indicate the node label, such as whether the user is a normal user or an anomalous user. 
+
+
+```angular2html
+ID  NAME    LABEL
+0   Anna    0
+1   Bob     1
+2   Charlie 0
+3   David   0
+4   Emma    1
+...
+```
+
 
 ## Terminology
 

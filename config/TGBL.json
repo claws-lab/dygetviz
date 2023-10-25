@@ -6,7 +6,7 @@
   "seed": 1,
   "epoch": 2,
   "mem_dim": 100,
-  "model": "tgn",
+  "model_name": "tgn",
   "time_dim": 100,
   "emb_dim": 100,
   "tolerance": 1e-06,

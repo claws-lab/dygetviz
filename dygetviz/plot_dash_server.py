@@ -31,7 +31,10 @@ for dataset_name in dataset_names:
     print(f"Loading data for {dataset_name}...")
     data = load_data(dataset_name)
     visual_dir = osp.join(args.output_dir, "visual", dataset_name)
-    nodes, node2trace, label2colors, options, cached_frames, cached_layout = get_nodes_and_options(data, visual_dir)
+
+    # Yiqiao: The number of arguments returned do not match
+    # nodes, node2trace, label2colors, options, cached_frames, cached_layout = get_nodes_and_options(data, visual_dir)
+    nodes, node2trace, label2colors, options, cached_frames = get_nodes_and_options(data, visual_dir)
     # Can refactor this into one dict later...
     dataset_data[dataset_name] = {"data": data, "nodes": nodes, "node2trace": node2trace, "label2colors": label2colors, "options": options, "cached_frames": cached_frames }
 

@@ -12,14 +12,13 @@
        "FEJER", "GYOR", "HAJDU", "HEVES", "JASZ", "KOMAROM", "NOGRAD",
        "PEST", "SOMOGY", "SZABOLCS", "TOLNA", "VAS", "VESZPREM", "ZALA"],
 
-
+  "do_edge_classification": false,
   "do_node_classification": false,
   "do_node_regression": true,
-  "do_edge_classification": false,
   "do_edge_regression": false,
+  "do_link_prediction": true,
   "num_classes_nodes": 0,
   "num_classes_edges": 0,
-  "do_link_prediction": true,
 
   "tasks": ["node_regression","link_pred"]
 

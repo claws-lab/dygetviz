@@ -31,7 +31,6 @@ TrainingLog.md
 *.pkl
 
 # Text files
-*.txt
 *.html
 *.pdf
 *.tsv
