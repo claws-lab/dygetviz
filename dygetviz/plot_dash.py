@@ -16,16 +16,20 @@ from tqdm import tqdm
 
 import const
 import const_viz
-from arguments import args
+from arguments import parse_args
 from data.dataloader import load_data
 from utils.utils_data import get_modified_time_of_file, read_markdown_into_html
 from utils.utils_misc import project_setup
 from utils.utils_visual import get_colors
 
+
 project_setup()
 
 print("Loading data...")
-data = load_data()
+
+# TODO
+
+data = load_data(args.dataset_name, False, args)
 
 annotation: dict = data.get("annotation", {})
 display_node_type: bool = data["display_node_type"]
@@ -44,6 +48,8 @@ projected_nodes: np.ndarray = data["projected_nodes"]
 reference_nodes: np.ndarray = data["reference_nodes"]
 snapshot_names: list = data["snapshot_names"]
 z = data["z"]
+
+args = parse_args()
 
 idx2node = {idx: node for node, idx in node2idx.items()}
 

@@ -57,3 +57,7 @@ pycache/
 /dygetiviz/demo/
 dygetiviz/data/
 dygetviz/data/chickenpox/chickenpox.json
+_build/
+_static
+_templates
+

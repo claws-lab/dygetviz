@@ -17,7 +17,7 @@ import torch
 from tqdm import tqdm
 
 import const
-from arguments import args
+from arguments import parse_args
 from const_viz import *
 from data.dataloader import load_data
 from utils.utils_misc import project_setup, get_visualization_name

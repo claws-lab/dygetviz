@@ -84,7 +84,7 @@ def train_dynamic_graph_embeds(dataset_name, device, embedding_dim: int,
         logger.warning(f"Metadata of dataset '{dataset_name}' not found in "
                        f"Google Drive.")
 
-    train_dataset, test_dataset, full_dataset = load_data_dtdg(dataset_name,
+    train_dataset, test_dataset, full_dataset = load_data_dtdg(args, dataset_name,
                                                                use_pyg=use_pyg)
 
     if use_pyg:
@@ -297,7 +297,9 @@ def train_dynamic_graph_embeds(dataset_name, device, embedding_dim: int,
 
 
 if __name__ == '__main__':
-    from arguments import args
+    from arguments import parse_args
+
+    args = parse_args()
 
     project_setup()
 

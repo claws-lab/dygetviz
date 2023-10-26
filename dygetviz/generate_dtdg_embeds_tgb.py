@@ -23,7 +23,7 @@ from tgb.utils.utils import set_random_seed, save_results
 from torch_geometric.loader import TemporalDataLoader
 from tqdm import trange, tqdm
 
-from arguments import args
+from arguments import parse_args
 from model.tgb_modules.decoder import LinkPredictor
 from model.tgb_modules.early_stopping import EarlyStopMonitor
 from model.tgb_modules.emb_module import GraphAttentionEmbedding
@@ -287,7 +287,7 @@ def test(assoc, data, device, device_viz, embeddings: torch.Tensor, embeds_li: l
     return perf_metrics, embeddings, node_presence
 
 
-def train_dynamic_graph_embeds_tgb(dataset_name: str):
+def train_dynamic_graph_embeds_tgb(dataset_name: str, args):
     r"""Trains dynamic graph embeddings using the TGN model.
 
     This function launches the training of dynamic graph embeddings
@@ -567,4 +567,7 @@ def train_dynamic_graph_embeds_tgb(dataset_name: str):
 
 
 if __name__ == "__main__":
-    train_dynamic_graph_embeds_tgb(args.dataset_name)
+
+    args = parse_args()
+
+    train_dynamic_graph_embeds_tgb(args.dataset_name, args)

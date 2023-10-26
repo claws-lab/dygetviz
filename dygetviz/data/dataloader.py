@@ -13,7 +13,7 @@ from torch_geometric_temporal import ChickenpoxDatasetLoader, \
     WindmillOutputSmallDatasetLoader, PemsBayDatasetLoader, \
     TwitterTennisDatasetLoader
 
-from arguments import args
+from arguments import parse_args
 from data.download import download_file_from_google_drive
 
 from dygetviz.data.chickenpox import ChickenpoxDataset
@@ -336,13 +336,11 @@ def load_data(dataset_name: str, use_tgb: bool=False) -> dict:
 
 
 
-def load_data_dtdg(dataset_name: str, use_pyg: bool=False) -> tuple:
+def load_data_dtdg(args, dataset_name: str, use_pyg: bool=False) -> tuple:
     """
     Load data for embedding training on Discrete-Time Dynamic-Graph (DTDG) models.
     """
     from torch_geometric_temporal.signal import temporal_signal_split
-
-
 
 
     if use_pyg:

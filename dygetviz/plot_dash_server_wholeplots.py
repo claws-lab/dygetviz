@@ -17,7 +17,7 @@ from tqdm import tqdm
 
 import const
 import const_viz
-from arguments import args
+from arguments import parse_args
 from data.dataloader import load_data
 from utils.utils_misc import project_setup
 from utils.utils_visual import get_colors, get_nodes_and_options
