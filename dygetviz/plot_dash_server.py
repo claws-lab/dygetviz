@@ -40,7 +40,7 @@ for dataset_name in dataset_names:
 
 print("Start the app ...")
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
-with open('dygetviz/static/Plotly_Button_Explanations.html', 'r') as file:
+with open(osp.join("data", dataset_name, "data_descriptions.md"), 'r') as file:
     plotly_button_explanations = file.read()
 
 app.title = f"DyGetViz | Dynamic Graph Embedding Trajectories Visualization Dashboard"

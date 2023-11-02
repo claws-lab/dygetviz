@@ -22,7 +22,7 @@ from data.dataloader import load_data
 from utils.utils_misc import project_setup
 from utils.utils_visual import get_colors, get_nodes_and_options
 
-
+args = parse_args()
 project_setup()
 dataset_names = ['Chickenpox', 'BMCBioinformatics2021', 'Reddit', 'DGraphFin', 'HistWords-EN-GNN']
 dataset_data = {}
@@ -32,13 +32,21 @@ for dataset_name in dataset_names:
     data = load_data(dataset_name)
     visual_dir = osp.join(args.output_dir, "visual", dataset_name)
     nodes, node2trace, label2colors, options, cached_figure = get_nodes_and_options(data, visual_dir)
+    try:
+        with open(osp.join("data", dataset_name, "data_descriptions.md"), 'r') as file:
+            markdown = file.read()
+    except:
+        markdown = "No description yet"
+        
+
     # Can refactor this into one dict later...
-    dataset_data[dataset_name] = {"data": data, "nodes": nodes, "node2trace": node2trace, "label2colors": label2colors,  "options": options, "cached_figure": cached_figure }
+    dataset_data[dataset_name] = {"data": data, "nodes": nodes, "node2trace": node2trace, "label2colors": label2colors,  "options": options, "cached_figure": cached_figure, "markdown": markdown }
 
 print("Start the app ...")
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 with open('dygetviz/static/Plotly_Button_Explanations.html', 'r') as file:
     plotly_button_explanations = file.read()
+
 
 app.title = f"DyGetViz | Dynamic Graph Embedding Trajectories Visualization Dashboard"
 
@@ -49,7 +57,7 @@ app.layout = html.Div(
                 className="text-center mb-4",
                 style={
                     'color': '#2c3e50',
-                    'font-weight': 'bold'
+                    'fontWeight': 'bold'
                 }),
 
  # Dropdown Row
@@ -125,7 +133,7 @@ app.layout = html.Div(
             style={
                 'width': '90%',
                 'height': '700px',
-                'box-shadow': '0 4px 6px rgba(0, 0, 0, 0.1)'
+                'boxShadow': '0 4px 6px rgba(0, 0, 0, 0.1)'
                 # A subtle shadow for depth
             },
             className="text-center",
@@ -139,7 +147,7 @@ app.layout = html.Div(
         dbc.Row([
             dbc.Col([
                 html.H3(f"Dataset Introduction", className="text-center"),
-                html.P("TODO", className="text-center"),
+                dcc.Markdown(dataset_data[dataset_names[0]]['markdown'], id='data-desc', dangerously_allow_html=True),
             ]),
 
             dbc.Col([
@@ -194,6 +202,7 @@ def convert_scatter_to_scattergl(scatter):
     Output('trajectory-names-store', 'data'),
     Output('add-trajectory', 'options'),
     Output('dataset-title', 'children'),
+    Output('data-desc', 'children'),
     Input('dataset-selector', 'value'),
     Input('add-trajectory', 'value'),
     Input('dygetviz', 'clickData'),
@@ -224,6 +233,7 @@ def update_graph(dataset_name, trajectory_names, clickData, current_figure, traj
     
     global_store_data = dataset_data[dataset_name]
     nodes, node2trace, label2colors, options, cached_figure = (global_store_data['nodes'], global_store_data['node2trace'], global_store_data['label2colors'], global_store_data['options'], global_store_data['cached_figure'])
+    markdown = global_store_data['markdown']
     display_node_type: bool = global_store_data['data']["display_node_type"]
     node2label: dict = global_store_data['data']["node2label"]
     label2node: dict = global_store_data['data']["label2node"]
@@ -274,7 +284,7 @@ def update_graph(dataset_name, trajectory_names, clickData, current_figure, traj
         
         # print(fig)
 
-        return fig, trajectory_names, options, title
+        return fig, trajectory_names, options, title, markdown
 
 
 
@@ -337,7 +347,7 @@ def update_graph(dataset_name, trajectory_names, clickData, current_figure, traj
 
 
     # print(fig)
-    return fig, trajectory_names, trajectory_options, title
+    return fig, trajectory_names, trajectory_options, title, markdown
 
 
 if __name__ == "__main__":
