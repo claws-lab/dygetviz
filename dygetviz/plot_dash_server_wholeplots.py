@@ -157,6 +157,7 @@ app.layout = html.Div(
                 html.H3(f"Dataset Introduction", className="text-center"),
 
                 # html.P("", className="text-center", id='data-desc',),
+                # dcc.Markdown("", className="text-left", id='dataset-description', dangerously_allow_html=True,style={'text-align': 'left'}),
                 dcc.Markdown("", className="text-left", id='data-desc', dangerously_allow_html=True,
                              style={'text-align': 'left'}),
             ]),
@@ -172,14 +173,6 @@ app.layout = html.Div(
 
 
 
-# Callback to update dataset description
-@app.callback(
-    Output('data-desc', 'children'),
-    Input('dataset-selector', 'value')
-)
-def update_dataset_description(selected_dataset_name):
-    description = load_data_description(selected_dataset_name, args)
-    return description
 
 def generate_node_profile(profile: pd.DataFrame):
     def f(x):
@@ -254,7 +247,10 @@ def update_graph(dataset_name, trajectory_names, clickData, current_figure, traj
     
     global_store_data = dataset_data[dataset_name]
     nodes, node2trace, label2colors, options, cached_figure = (global_store_data['nodes'], global_store_data['node2trace'], global_store_data['label2colors'], global_store_data['options'], global_store_data['cached_figure'])
+
+    # Update dataset description
     markdown = global_store_data['markdown']
+
     display_node_type: bool = global_store_data['data']["display_node_type"]
     node2label: dict = global_store_data['data']["node2label"]
     label2node: dict = global_store_data['data']["label2node"]
