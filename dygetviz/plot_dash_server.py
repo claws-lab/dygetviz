@@ -38,7 +38,12 @@ def main(args):
         # Can refactor this into one dict later...
         dataset_data[dataset_name] = {"data": data, "nodes": nodes, "node2trace": node2trace, "label2colors": label2colors, "options": options, "cached_frames": cached_frames }
 
-    with open('dygetviz/static/Plotly_Button_Explanations.html', 'r') as file:
+
+    # with open('dygetviz/static/Plotly_Button_Explanations.html', 'r') as file:
+    #     plotly_button_explanations = file.read()
+    print("Start the app ...")
+    app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+    with open(osp.join("data", dataset_name, "data_descriptions.md"), 'r') as file:
         plotly_button_explanations = file.read()
 
     app.title = f"DyGetViz | Dynamic Graph Embedding Trajectories Visualization Dashboard"

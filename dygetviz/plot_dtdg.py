@@ -241,47 +241,6 @@ def get_visualization_cache(dataset_name: str, device: str, model_name: str,
 
             z_projected_coords_li = []
 
-            # Naive implementation: Start
-
-            if DEBUG:
-                embedding_test2: np.ndarray = np.zeros(
-                    (len(projected_nodes), visualization_dim))
-                for i, node in enumerate(
-                        tqdm(projected_nodes, desc=f"Snapshot {idx_snapshot}")):
-                    cos_sim_topk_closest_reference_nodes, idx_topk_closest_reference_nodes = \
-                        cos_sim_mat[i].topk(nn + 1,
-                                            largest=True, )
-
-                    possible_idx_reference_node = reference_node2idx.get(node,
-                                                                         -1)
-                    # When calculating the nearest neighbor of `node`, we should exclude `node` itself
-                    # Algorithm 1 Line 7-9
-                    cos_sim_topk_closest_reference_nodes: np.ndarray = \
-                        cos_sim_topk_closest_reference_nodes[
-                            idx_topk_closest_reference_nodes != possible_idx_reference_node][
-                        :nn].cpu().numpy()
-                    idx_topk_closest_reference_nodes: np.ndarray = \
-                        idx_topk_closest_reference_nodes[
-                            idx_topk_closest_reference_nodes != possible_idx_reference_node][
-                        :nn].cpu().numpy()
-                    # Algorithm 1 Line 10
-                    topk_closest_reference_nodes = [reference_nodes[idx] for idx
-                                                    in
-                                                    idx_topk_closest_reference_nodes]
-
-                    # Algorithm 1 Line 11
-                    # (nn, 2)
-                    z_projected_coords = np.array(embedding_train[
-                                                      idx_topk_closest_reference_nodes].tolist()).mean(
-                        axis=0)
-
-                    # Algorithm 1 Line 12
-                    embedding_test2[i] = embedding_train[
-                                             possible_idx_reference_node] * interpolation + z_projected_coords * (
-                                                 1 - interpolation)
-
-            # Naive implementation: End
-
             # Vectorize inner loop
             all_possible_idx_reference_node = torch.tensor(
                 [reference_node2idx.get(node, -1)
@@ -295,7 +254,7 @@ def get_visualization_cache(dataset_name: str, device: str, model_name: str,
                                             None])
             # For each row, keep the first nn `True`
             mask = mask & (torch.concat(
-                [torch.ones((mask.shape[0], nn), dtype=torch.bool),
+                [torch.ones((mask.shape[0], nn), dtype=torch.bool, device=device),
                  (mask.sum(dim=1) <= nn).reshape(-1, 1)], dim=1))
 
             cos_sim_topk_values = cos_sim_topk_values[mask].reshape(-1,
@@ -308,7 +267,7 @@ def get_visualization_cache(dataset_name: str, device: str, model_name: str,
 
             # Algorithm 1 Line 12 (Vectorized)
             embedding_test = embedding_train[
-                                 all_possible_idx_reference_node] * interpolation + z_projected_coords * (
+                                 all_possible_idx_reference_node.cpu()] * interpolation + z_projected_coords * (
                                          1 - interpolation)
 
             if DEBUG:
@@ -377,19 +336,6 @@ def get_visualization_cache(dataset_name: str, device: str, model_name: str,
                 display_name = [name if i % 10 == 0 else "" for i, name in
                                 enumerate(display_name)]
 
-            if DEBUG:
-                assert (node_presence[:, idx_node].nonzero()[0] ==
-                        highlighted_idx_node_coords[const.IDX_SNAPSHOT][
-                            node]).all()
-
-                assert (highlighted_idx_node_coords['x'][node] ==
-                        embedding_test_all[:, idx, 0][
-                            node_presence[:, idx_node]]).all()
-
-                assert (highlighted_idx_node_coords['y'][node] ==
-                        embedding_test_all[:, idx, 1][
-                            node_presence[:, idx_node]]).all()
-
             df = pd.DataFrame({
                 'x': embedding_test_all[:, idx, 0][
                     node_presence[:, idx_node]],
@@ -435,17 +381,22 @@ def get_visualization_cache(dataset_name: str, device: str, model_name: str,
             # Traces in sequence 0-num_animation_frames
             traces_of_line = [px.line(df.loc[0:i], x='x', y='y', hover_name='hover_name',
                                text="display_name", 
-                               color='node_color', labels=df.loc[0:i]['node']).data[0] for i in range(num_animation_frames + 1)]
+                               color='node_color', 
+                               labels=df.loc[0:i]['node'],
+                               hover_data={
+                                   f'hover_data_{i}': True for i, field in enumerate(fields)
+                                   }
+                                ).data[0] for i in range(num_animation_frames + 1)]
 
             fig_line = px.line(df, x='x', y='y', hover_name='hover_name',
                                text="display_name",
                                  color='node_color',
                                animation_frame=const.IDX_SNAPSHOT, animation_group='hover_name',
-                               labels=df["node"]
-                            #    hover_data={
-                            #        f'hover_data_{i}': True for i, field in
-                            #        enumerate(fields)
-                            #    }
+                               labels=df["node"],
+                               hover_data={
+                                   f'hover_data_{i}': True for i, field in
+                                   enumerate(fields)
+                               }
                                )
 
             if len(fig_line.data) == 0:
@@ -455,14 +406,14 @@ def get_visualization_cache(dataset_name: str, device: str, model_name: str,
                 fig_line.data[0].line.color = colors[idx]
 
                 fig_line.data[0].line.width = 5
-                fig_line.data[0].marker.size = 20
+                fig_line.data[0].marker.size = 6
 
                 # Change the displayed name in the legend
                 fig_line.data[0]['name'] = projected_node_name
 
                 fig_line.data[0].hovertemplate = get_hovertemplate(
                     fields_in_customdata=fields, is_trajectory=True)
-
+                print(get_hovertemplate(fields_in_customdata=fields, is_trajectory=True))
                 for frame in traces_of_line:
                     frame.line.color = colors[idx]
                     frame.line.width = 5
