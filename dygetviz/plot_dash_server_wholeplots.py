@@ -18,10 +18,11 @@ from tqdm import tqdm
 import const
 import const_viz
 from arguments import parse_args
-from data.dataloader import load_data
+from data.dataloader import load_data, load_data_description
 from utils.utils_misc import project_setup
 from utils.utils_visual import get_colors, get_nodes_and_options
 
+args = parse_args()
 
 project_setup()
 dataset_names = ['Chickenpox', 'BMCBioinformatics2021', 'Reddit', 'DGraphFin', 'HistWords-EN-GNN']
@@ -33,7 +34,11 @@ for dataset_name in dataset_names:
     visual_dir = osp.join(args.output_dir, "visual", dataset_name)
     nodes, node2trace, label2colors, options, cached_figure = get_nodes_and_options(data, visual_dir)
     # Can refactor this into one dict later...
-    dataset_data[dataset_name] = {"data": data, "nodes": nodes, "node2trace": node2trace, "label2colors": label2colors,  "options": options, "cached_figure": cached_figure }
+
+    dataset_description = load_data_description(dataset_name, args)
+
+    dataset_data[dataset_name] = {"data": data, "nodes": nodes, "node2trace": node2trace, "label2colors":
+        label2colors,  "options": options, "cached_figure": cached_figure, "dataset_description": dataset_description}
 
 print("Start the app ...")
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -41,6 +46,7 @@ with open('dygetviz/static/Plotly_Button_Explanations.html', 'r') as file:
     plotly_button_explanations = file.read()
 
 app.title = f"DyGetViz | Dynamic Graph Embedding Trajectories Visualization Dashboard"
+
 
 app.layout = html.Div(
     [   # Title
@@ -52,7 +58,7 @@ app.layout = html.Div(
                     'font-weight': 'bold'
                 }),
 
- # Dropdown Row
+        # Dropdown Row
         dbc.Row(
             [dbc.Col(
                     [
@@ -130,7 +136,7 @@ app.layout = html.Div(
             },
             className="text-center",
         ),
-        html.Div("✨: a category. \n\"(1)\": a node label.", id="note"),
+        # html.Div("✨: a category. \n\"(1)\": a node label.", id="note"),
 
         # Store the nodes in `trajectory_names`
         dcc.Store(
@@ -139,7 +145,10 @@ app.layout = html.Div(
         dbc.Row([
             dbc.Col([
                 html.H3(f"Dataset Introduction", className="text-center"),
-                html.P("TODO", className="text-center"),
+                # html.P("", className="text-center", id='dataset-description',),
+                dcc.Markdown("", className="text-left", id='dataset-description', dangerously_allow_html=True,
+                             style={'text-align': 'left'}),
+
             ]),
 
             dbc.Col([
@@ -151,6 +160,16 @@ app.layout = html.Div(
         ]),
     ])
 
+
+
+# Callback to update dataset description
+@app.callback(
+    Output('dataset-description', 'children'),
+    Input('dataset-selector', 'value')
+)
+def update_dataset_description(selected_dataset_name):
+    description = load_data_description(selected_dataset_name, args)
+    return description
 
 def generate_node_profile(profile: pd.DataFrame):
     def f(x):

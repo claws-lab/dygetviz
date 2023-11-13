@@ -16,6 +16,7 @@ Welcome to DyGETViz's documentation!
    generate_dtdg_embeds
    generate_dtdg_embeds_pyg
    generate_dtdg_embeds_tgb
+   modules
 
 
 

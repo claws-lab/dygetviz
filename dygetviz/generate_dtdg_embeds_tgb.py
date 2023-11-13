@@ -1,11 +1,20 @@
 """
-Dynamic Link Prediction with a TGN model with Early Stopping
-Reference: 
-    - https://github.com/pyg-team/pytorch_geometric/blob/master/examples/tgn.py
+Dynamic Link Prediction with a TGN model with Early Stopping.
 
-command for an example run:
+References
+----------
+- https://github.com/pyg-team/pytorch_geometric/blob/master/examples/tgn.py
+
+Example
+-------
+To run this script, execute the following command:
+
+.. code-block:: bash
+
     python examples/linkproppred/tgbl-coin/tgn.py --data "tgbl-coin" --num_run 1 --seed 1
+
 """
+
 import argparse
 import json
 import logging

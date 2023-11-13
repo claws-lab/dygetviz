@@ -5,6 +5,8 @@ from dash.dependencies import Input, Output
 import plotly.express as px
 import pandas as pd
 
+import plotly.graph_objects as go
+
 # Sample data
 df = pd.DataFrame({
     'x': [1, 2, 3, 4, 5],

@@ -2,6 +2,7 @@
 
 Created 2023.7
 """
+import logging
 import os.path as osp
 import pickle
 import traceback
@@ -16,16 +17,24 @@ import plotly.io as pio
 import torch
 from tqdm import tqdm
 
+
 import const
 from arguments import parse_args
 from const_viz import *
 from data.dataloader import load_data
+from utils.utils_logging import configure_default_logging
 from utils.utils_misc import project_setup, get_visualization_name
 from utils.utils_training import pairwise_cos_sim
 from utils.utils_visual import get_colors, get_hovertemplate
 from visualization.anchor_nodes_generator import get_dataframe_for_visualization
 
+
+
 warnings.simplefilter(action='ignore', category=FutureWarning)
+
+
+configure_default_logging()
+logger = logging.getLogger(__name__)
 
 ########## General Parameters. May be overwritten by individual datasets ##########
 K = 10
@@ -70,7 +79,7 @@ def get_visualization_cache(dataset_name: str, device: str, model_name: str,
     snapshot_names = data["snapshot_names"]
     z = data["z"]
 
-    DEBUG = True
+    DEBUG = False
 
     visual_dir = osp.join("outputs", "visual", dataset_name)
 
@@ -112,7 +121,7 @@ def get_visualization_cache(dataset_name: str, device: str, model_name: str,
         metadata_df=metadata_df)
 
     for nn in num_nearest_neighbors:
-        print("-" * 30)
+        logger.info("-" * 30)
         print(f"> # Nearest Neighbors: {nn}")
         print("-" * 30)
 
@@ -306,18 +315,18 @@ def get_visualization_cache(dataset_name: str, device: str, model_name: str,
                 print("[Sanity Check] The following should print True:",
                       np.allclose(embedding_test, embedding_test2.__array__()))
 
-            if DEBUG:
-                for i, node in enumerate(projected_nodes):
-                    idx_node = node2idx[node]
+            # if DEBUG:
+            for i, node in enumerate(projected_nodes):
+                idx_node = node2idx[node]
 
-                    if node_presence[idx_snapshot, idx_node]:
-                        highlighted_idx_node_coords['x'][node] += [
-                            embedding_test[i][0]]
-                        highlighted_idx_node_coords['y'][node] += [
-                            embedding_test[i][1]]
-                        highlighted_idx_node_coords[const.IDX_SNAPSHOT][
-                            node] += [
-                            idx_snapshot]
+                if node_presence[idx_snapshot, idx_node]:
+                    highlighted_idx_node_coords['x'][node] += [
+                        embedding_test[i][0]]
+                    highlighted_idx_node_coords['y'][node] += [
+                        embedding_test[i][1]]
+                    highlighted_idx_node_coords[const.IDX_SNAPSHOT][
+                        node] += [
+                        idx_snapshot]
 
             embedding_test_all += [embedding_test]
 
@@ -455,7 +464,7 @@ def get_visualization_cache(dataset_name: str, device: str, model_name: str,
                     fields_in_customdata=fields, is_trajectory=True)
 
                 for frame in traces_of_line:
-                    frame.line.color = colors[idx_node]
+                    frame.line.color = colors[idx]
                     frame.line.width = 5
                     frame.marker.size = 20
 
@@ -469,7 +478,9 @@ def get_visualization_cache(dataset_name: str, device: str, model_name: str,
                 frames = [
                     go.Frame(data=traces_of_line[i], name=str(i))
                     for i in range(num_animation_frames + 1)]
-                fig_line.frames = frames  
+                fig_line.frames = frames
+
+
             except:
                 traceback.print_exc()
 
@@ -483,11 +494,10 @@ def get_visualization_cache(dataset_name: str, device: str, model_name: str,
             fig.frames = frames  
 
         # Write all pd.Dataframe's to Excel outside the loop
-
         mode = 'a' if osp.exists(path_coords) else 'w'
 
-        # Too large to write to Excel
         if len(dataframes) >= 100:
+            # If #nodes >= 100, loading/saving to excel will take too much time.
             with open(osp.join(visual_dir, f"{visualization_name}.pkl"),
                       'wb') as f:
                 pickle.dump(dataframes, f)
@@ -534,6 +544,8 @@ def get_visualization_cache(dataset_name: str, device: str, model_name: str,
 
 if __name__ == '__main__':
     project_setup()
+
+    args = parse_args()
     get_visualization_cache(dataset_name=args.dataset_name, device=args.device,
                             model_name=args.model, visualization_dim=2,
                             visualization_model_name=args.visualization_model)

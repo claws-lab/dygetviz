@@ -26,7 +26,7 @@ configure_default_logging()
 logger = logging.getLogger(__name__)
 
 
-def train_dynamic_graph_embeds(dataset_name, device, embedding_dim: int,
+def train_dynamic_graph_embeds(args, dataset_name, device, embedding_dim: int,
                                epochs: int, lr: float, model_name: str,
                                save_every: int,
                                step_size: int = 50, use_pyg=True):

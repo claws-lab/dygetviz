@@ -335,6 +335,17 @@ def load_data(dataset_name: str, use_tgb: bool=False) -> dict:
     }
 
 
+def load_data_description(dataset_name: str, args) -> str:
+    path = osp.join(args.data_dir, dataset_name,  f"data_descriptions.md")
+
+    if osp.exists(path):
+        data_description = open(path, 'r', encoding='utf-8').read()
+    else:
+        data_description = ""
+
+    return data_description
+
+
 
 def load_data_dtdg(args, dataset_name: str, use_pyg: bool=False) -> tuple:
     """
@@ -376,7 +387,8 @@ def load_data_dtdg(args, dataset_name: str, use_pyg: bool=False) -> tuple:
         if dataset_name == "UNComtrade":
     
             path = osp.join(args.cache_dir, f"full_dataset_{dataset_name}.pt")
-            full_dataset = UNComtradeDataset(args)
+            # TODO
+            # full_dataset = UNComtradeDataset(args)
     
         elif dataset_name == "Chickenpox":
             full_dataset = ChickenpoxDataset(args)
