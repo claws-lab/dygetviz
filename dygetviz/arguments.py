@@ -62,10 +62,6 @@ def parse_args():
 
     parser.add_argument('--embedding_dim', type=int, default=64,
                         help="the embedding size of model")
-    parser.add_argument('--embedding_dim_user', type=int, default=32,
-                        help="The embedding size for the users")
-    parser.add_argument('--embedding_dim_resource', type=int, default=32,
-                        help="The embedding size for the resource (e.g. video)")
 
     parser.add_argument('--epochs', type=int, default=50,
                         help="Number of epochs to train.")
@@ -80,9 +76,6 @@ def parse_args():
                         choices=[RANDOM, PER_INTERACTION, EXCLUDE_POSITIVE],
                         default=EXCLUDE_POSITIVE,
                         help="Negative sampling method for evaluation dataset")
-
-    parser.add_argument('--full_dataset_name', type=str, default="60_months",
-                        help="Name of the full dataset")
 
     parser.add_argument('--gpus', type=str, default="0",
                         help="GPUs to use. If using 4 GPUs, type 0,1,2,3")
@@ -101,16 +94,11 @@ def parse_args():
 
     parser.add_argument('--model', type=str, default=None, help="Model name")
 
-    parser.add_argument('--node_types', type=str,
-                        choices=["v_subreddit", "author_subreddit",
-                                 "author_resource"], default="v_subreddit",
-                        help="What types of node to include in the GCN bipartite graph?")
 
     parser.add_argument('--num_negative_candidates', type=int, default=1000,
                         help="How many negative examples to sample for each video during the initial sampling?")
     parser.add_argument('--num_neighbors', type=int, default=10,
                         help="Number of neighboring nodes in GNN")
-    parser.add_argument('--num_resource_prototypes', type=int, default=-1, help="")
 
     parser.add_argument('--num_workers', type=int, default=1,
                         help="Number of workers for multiprocessing")

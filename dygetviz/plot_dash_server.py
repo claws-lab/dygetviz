@@ -67,7 +67,7 @@ app.layout = html.Div(
                     'font-weight': 'bold'
                 }),
 
- # Dropdown Row
+        # Dropdown Row
         dbc.Row(
             [dbc.Col(
                     [
@@ -476,10 +476,10 @@ def update_graph(dataset_name, trajectory_names, clickData, current_figure, traj
     # print(fig)
     return fig, trajectory_names, trajectory_options, title
 
-
-app.run_server(debug=True,
-           dev_tools_hot_reload=False, use_reloader=False,
-           port=args.port)
+if __name__ == "__main__":
+    app.run_server(debug=True,
+               dev_tools_hot_reload=False, use_reloader=False,
+               port=args.port)
 
 # @app.callback(
 #     Output('node-selector', 'options'),

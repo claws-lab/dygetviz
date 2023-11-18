@@ -59,6 +59,7 @@ def get_visualization_cache(dataset_name: str, device: str, model_name: str,
 
     print("TODO")
     if dataset_name.startswith("tgbl"):
+
         data = load_data(dataset_name, True)
     else:
         data = load_data(dataset_name)
@@ -270,9 +271,6 @@ def get_visualization_cache(dataset_name: str, device: str, model_name: str,
                                  all_possible_idx_reference_node.cpu()] * interpolation + z_projected_coords * (
                                          1 - interpolation)
 
-            if DEBUG:
-                print("[Sanity Check] The following should print True:",
-                      np.allclose(embedding_test, embedding_test2.__array__()))
 
             # if DEBUG:
             for i, node in enumerate(projected_nodes):

@@ -311,5 +311,5 @@ if __name__ == '__main__':
     lr: float = args.lr
     model_name: str = args.model
 
-    train_dynamic_graph_embeds(dataset_name, device, embedding_dim,
+    train_dynamic_graph_embeds(args, dataset_name, device, embedding_dim,
                                epochs, lr, model_name, save_every)

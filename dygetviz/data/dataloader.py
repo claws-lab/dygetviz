@@ -1,4 +1,6 @@
+import argparse
 import json
+import logging
 import os
 import os.path as osp
 import warnings
@@ -17,6 +19,11 @@ from arguments import parse_args
 from data.download import download_file_from_google_drive
 
 from dygetviz.data.chickenpox import ChickenpoxDataset
+from generate_dtdg_embeds_tgb import train_dynamic_graph_embeds_tgb
+from utils.utils_logging import configure_default_logging
+
+configure_default_logging()
+logger = logging.getLogger(__name__)
 
 warnings.simplefilter(action='ignore', category=NumbaDeprecationWarning)
 
@@ -40,7 +47,8 @@ NAME2DATASET_LOADER = {
 
 def load_data(dataset_name: str, use_tgb: bool=False) -> dict:
     """
-    Loads data for dynamic node embedding trajectory visualization.
+    Loads data for dynamic node embedding trajectory visualization. For PyTorch Geometric Temporal (PyG-T) and DGB,
+    if the data files do not exist, train the embeddings.
 
     Args:
         dataset_name (str): Name of the dataset to load.
@@ -87,12 +95,23 @@ def load_data(dataset_name: str, use_tgb: bool=False) -> dict:
 
 
     try:
-        z = np.load(
-            osp.join("data", dataset_name, f"{config['model_name']}_embeds_{dataset_name}_Ep{config['epoch']}_Em"
-                                           f"b{config['emb_dim']}.npy"))
+
+        embedding_path = osp.join("data", dataset_name, f"{config['model_name']}_embeds_{dataset_name}_Ep{config['epoch']}_Em"
+                                           f"b{config['emb_dim']}.npy")
+
+        if not osp.exists(embedding_path):
+            logger.info(f"Embedding file {embedding_path} not found. Training the embeddings.")
+
+            training_config = argparse.Namespace(**json.load(open(osp.join("config", 'TGB_training.json'), 'r',
+                                                                  encoding='utf-8')))
+            train_dynamic_graph_embeds_tgb(training_config)
+
+        z = np.load(embedding_path)
 
 
     except:
+
+        # Try the simplified naming convention
         z = np.load(
             osp.join("data", dataset_name, f"embeds_{dataset_name}.npy"))
 

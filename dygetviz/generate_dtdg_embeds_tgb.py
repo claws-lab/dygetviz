@@ -296,14 +296,14 @@ def test(assoc, data, device, device_viz, embeddings: torch.Tensor, embeds_li: l
     return perf_metrics, embeddings, node_presence
 
 
-def train_dynamic_graph_embeds_tgb(dataset_name: str, args):
+def train_dynamic_graph_embeds_tgb(training_config):
     r"""Trains dynamic graph embeddings using the TGN model.
 
     This function launches the training of dynamic graph embeddings
     using the Temporal Graph Networks (TGN) model.
 
     Args:
-        dataset_name (str): Name of the dataset.
+        training_config (Namespace): Training config.
 
     Note:
         The function uses global variable `args` for some of the parameters.
@@ -311,7 +311,7 @@ def train_dynamic_graph_embeds_tgb(dataset_name: str, args):
     """
 
 
-    args.model = "tgn"
+    training_config.model = "tgn"
     start_overall = timeit.default_timer()
 
     # ========== set parameters...
@@ -319,17 +319,18 @@ def train_dynamic_graph_embeds_tgb(dataset_name: str, args):
     tgb_args = argparse.Namespace(
         **json.load(open(osp.join("config", 'TGBL.json'))))
 
-    logger.info("INFO: Arguments:", tgb_args)
+    logger.info("Arguments")
+    logger.info(tgb_args)
 
-    DATA = dataset_name
-    logger.info("INFO: Dataset:", DATA)
+    DATA = training_config.dataset_name
+    logger.info(f"Dataset: {DATA}")
 
     LR = tgb_args.lr
     BATCH_SIZE = tgb_args.bs
     SEED = tgb_args.seed
     MEM_DIM = tgb_args.mem_dim
     TIME_DIM = tgb_args.time_dim
-    EMB_DIM = args.embedding_dim  # tgb_args.emb_dim
+    EMB_DIM = training_config.embedding_dim  # tgb_args.emb_dim
     TOLERANCE = tgb_args.tolerance
     PATIENCE = tgb_args.patience
     NUM_RUNS = tgb_args.num_run
@@ -338,9 +339,9 @@ def train_dynamic_graph_embeds_tgb(dataset_name: str, args):
     MODEL_NAME = 'TGN'
     # ==========
 
-    device = args.device
+    device = training_config.device
     # Device for storing all embeddings for visualization
-    device_viz = args.device_viz
+    device_viz = training_config.device_viz
 
     # data loading
     dataset = PyGLinkPropPredDataset(name=DATA, root="datasets")
@@ -351,9 +352,9 @@ def train_dynamic_graph_embeds_tgb(dataset_name: str, args):
     test_mask = mask.clone()
 
     N = dataset.edge_label.shape[0]
-    train_mask[:int(args.train_size * N)] = True
-    val_mask[int(args.train_size * N): int((args.train_size + args.val_size) * N)] = True
-    test_mask[int((args.train_size + args.val_size) * N):] = True
+    train_mask[:int(training_config.train_size * N)] = True
+    val_mask[int(training_config.train_size * N): int((training_config.train_size + training_config.val_size) * N)] = True
+    test_mask[int((training_config.train_size + training_config.val_size) * N):] = True
 
     data = dataset.get_TemporalData()
 
@@ -425,14 +426,14 @@ def train_dynamic_graph_embeds_tgb(dataset_name: str, args):
     results_path = f'saved_results'
     if not osp.exists(results_path):
         os.mkdir(results_path)
-        logger.info('INFO: Create directory {}'.format(results_path))
+        logger.info('Create directory {}'.format(results_path))
     Path(results_path).mkdir(parents=True, exist_ok=True)
     results_filename = f'{results_path}/{MODEL_NAME}_{DATA}_results.json'
 
     for run_idx in range(NUM_RUNS):
         logger.info(
             '-------------------------------------------------------------------------------')
-        logger.info(f"INFO: >>>>> Run: {run_idx} <<<<<")
+        logger.info(f">>>>> Run: {run_idx} <<<<<")
         start_run = timeit.default_timer()
 
         # set the seed for deterministic results...
@@ -458,23 +459,23 @@ def train_dynamic_graph_embeds_tgb(dataset_name: str, args):
         # Snapshot indices (the `step` in each epoch) to save the embeddings for visualization.
 
         num_batches = len(train_loader)
-        if args.do_val:
+        if training_config.do_val:
             num_batches += len(val_loader)
-        if args.do_test:
+        if training_config.do_test:
             num_batches += len(test_loader)
 
-        logger.info(f"INFO: #batches={num_batches}")
+        logger.info(f"#batches={num_batches}")
         snapshot_indices = torch.linspace(0, num_batches,
-                                          args.num_snapshots + 1,
+                                          training_config.num_snapshots + 1,
                                           dtype=int)
 
-        for epoch in trange(1, args.epochs + 1, desc="Train"):
+        for epoch in trange(1, training_config.epochs + 1, desc="Train"):
             # training
             embeds_li, node_presence_li = [], []
             start_epoch_train = timeit.default_timer()
 
-            store_embeds = epoch % args.save_embeds_every == 0
-            loss, latest_embeddings, latest_node_presence = train(args, assoc, criterion,
+            store_embeds = epoch % training_config.save_embeds_every == 0
+            loss, latest_embeddings, latest_node_presence = train(training_config, assoc, criterion,
                                                                   data, device, device_viz,
                                                                   embeds_li, epoch,
                                                                   max_dst_idx, min_dst_idx,
@@ -486,7 +487,7 @@ def train_dynamic_graph_embeds_tgb(dataset_name: str, args):
                 f"Epoch: {epoch:02d}, Loss: {loss:.4f}, Training elapsed Time (s): {timeit.default_timer() - start_epoch_train: .4f}"
             )
 
-            if args.do_val:
+            if training_config.do_val:
                 # validation
                 start_val = timeit.default_timer()
                 perf_metric_val, latest_embeddings, latest_node_presence = test(assoc, data, device, device_viz,
@@ -512,7 +513,7 @@ def train_dynamic_graph_embeds_tgb(dataset_name: str, args):
             logger.info(
                 f"Train & Validation: Elapsed Time (s): {train_val_time: .4f}")
 
-            if args.do_test:
+            if training_config.do_test:
                 # ==================================================== Test
                 # first, load the best model
                 early_stopper.load_checkpoint(model)
@@ -532,7 +533,7 @@ def train_dynamic_graph_embeds_tgb(dataset_name: str, args):
                                                                                  "test", start_batch_index=len(
                         train_loader) + len(val_loader), store_embeds=store_embeds)
 
-                logger.info(f"INFO: Test: Evaluation Setting: >>> ONE-VS-MANY <<< ")
+                logger.info(f"Test: Evaluation Setting: >>> ONE-VS-MANY <<< ")
                 logger.info(f"\tTest: {metric}: {perf_metric_test: .4f}")
                 test_time = timeit.default_timer() - start_test
                 logger.info(f"\tTest: Elapsed Time (s): {test_time: .4f}")
@@ -551,22 +552,21 @@ def train_dynamic_graph_embeds_tgb(dataset_name: str, args):
             del latest_embeddings, latest_node_presence
 
             logger.info(
-                f"INFO: >>>>> Run: {run_idx}, elapsed time: {timeit.default_timer() - start_run: .4f} <<<<<")
+                f">>>>> Run: {run_idx}, elapsed time: {timeit.default_timer() - start_run: .4f} <<<<<")
             logger.info('-' * 30)
 
-            if epoch % args.save_embeds_every == 0:
-                logger.info(f"[Embeds] Saving embeddings for Ep. {epoch} ...",
-                      end=" ")
+            if epoch % training_config.save_embeds_every == 0:
+                logger.info(f"[Embeds] Saving embeddings for Ep. {epoch} ...")
 
                 embeds_li = np.stack(embeds_li, axis=0)
 
-                os.makedirs(osp.join(args.data_dir, dataset_name),
+                os.makedirs(osp.join(training_config.data_dir, training_config.dataset_name),
                             exist_ok=True)
-                np.save(osp.join(args.data_dir, dataset_name,
-                                 f"{args.model}_embeds_{dataset_name}_Ep{epoch}_Emb{args.embedding_dim}.npy"),
+                np.save(osp.join(training_config.data_dir, training_config.dataset_name,
+                                 f"{training_config.model}_embeds_{training_config.dataset_name}_Ep{epoch}_Emb{training_config.embedding_dim}.npy"),
                         embeds_li)
-                np.save(osp.join(args.data_dir, dataset_name,
-                                 f"{args.model}_node_presence_{dataset_name}_Emb{args.embedding_dim}.npy"),
+                np.save(osp.join(training_config.data_dir, training_config.dataset_name,
+                                 f"{training_config.model}_node_presence_{training_config.dataset_name}_Emb{training_config.embedding_dim}.npy"),
                         node_presence_li)
 
                 logger.info("Done!")
@@ -577,6 +577,6 @@ def train_dynamic_graph_embeds_tgb(dataset_name: str, args):
 
 if __name__ == "__main__":
 
-    args = parse_args()
+    config = argparse.Namespace(**json.load(open(osp.join("config", 'TGB_training.json'))))
 
-    train_dynamic_graph_embeds_tgb(args.dataset_name, args)
+    train_dynamic_graph_embeds_tgb(config)
