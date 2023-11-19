@@ -61,3 +61,4 @@ _build/
 _static
 _templates
 
+/dygetviz/demo/

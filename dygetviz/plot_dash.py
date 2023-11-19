@@ -216,16 +216,21 @@ app.layout = html.Div(
         ),
 
         # Graph
-        dcc.Graph(
-            id='dygetviz',
-            style={
-                'width': '90%',
-                'height': '700px',
-                'box-shadow': '0 4px 6px rgba(0, 0, 0, 0.1)'
-                # A subtle shadow for depth
-            },
-            className="text-center",
+        dcc.Loading(
+            id="loading-1",  # You can use any unique ID
+            type="default",  # There are different types of loading spinners you can use
+            children=dcc.Graph(
+                id='dygetviz',
+                style={
+                    'width': '90%',
+                    'height': '700px',
+                    'box-shadow': '0 4px 6px rgba(0, 0, 0, 0.1)'
+                    # A subtle shadow for depth
+                },
+                className="text-center",
+            ),
         ),
+
         # html.Div("✨: a category. \n\"(1)\": a node label.", id="note"),
 
         # Store the nodes in `trajectory_names`
