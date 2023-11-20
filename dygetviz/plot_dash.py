@@ -3,6 +3,7 @@ Plot using [Dash](https://dash.plotly.com/)
 """
 
 import os.path as osp
+import os
 
 import dash
 import dash_bootstrap_components as dbc
@@ -13,6 +14,7 @@ import plotly.io as pio
 from dash import dcc, html
 from dash.dependencies import Input, Output, State
 from tqdm import tqdm
+import json
 
 import const
 import const_viz
@@ -20,152 +22,68 @@ from arguments import args
 from data.dataloader import load_data
 from utils.utils_data import get_modified_time_of_file
 from utils.utils_misc import project_setup
-from utils.utils_visual import get_colors
+from utils.utils_visual import get_colors, get_nodes_and_options
+
 
 project_setup()
-
-print("Loading data...")
-data = load_data()
-
-annotation: dict = data.get("annotation", {})
-display_node_type: bool = data["display_node_type"]
-idx_reference_snapshot: int = data["idx_reference_snapshot"]
-interpolation: float = data["interpolation"]
-node_presence: np.ndarray = data["node_presence"]
-node2idx: dict = data["node2idx"]
-node2label: dict = data["node2label"]
-label2node: dict = data["label2node"]
-metadata_df: dict = data["metadata_df"]
-num_nearest_neighbors: int = data["num_nearest_neighbors"]
-perplexity: int = data["perplexity"]
-plot_anomaly_labels: bool = data["plot_anomaly_labels"]
-projected_nodes: np.ndarray = data["projected_nodes"]
-reference_nodes: np.ndarray = data["reference_nodes"]
-snapshot_names: list = data["snapshot_names"]
-z = data["z"]
-
-idx2node = {idx: node for node, idx in node2idx.items()}
-
-visualization_name = f"{args.dataset_name}_{args.model}_{args.visualization_model}_perplex{perplexity}_nn{data['num_nearest_neighbors'][0]}_interpolation{interpolation}_snapshot{idx_reference_snapshot}"
-
-print("Reading visualization cache...")
-
-path = osp.join(args.visual_dir, f"Trajectory_{visualization_name}.json")
-
-get_modified_time_of_file(path)
-
-fig_cached = pio.read_json(path)
-
-node2trace = {
-    trace['name'].split(' ')[0]: trace for trace in fig_cached.data
-}
-
-print("Getting candidate nodes ...")
-
-if args.dataset_name in ["DGraphFin"]:
-    nodes = [n for n, l in node2label.items() if l in [0, 1]]
-else:
-    nodes = list(node2idx.keys())
-
-options = []
-
-# If there are multiple node categories, we can display a distinct color family for each type of nodes
-# NOTE: We specifically require that the first color palette is Blue (for normal nodes) and the second one is Red (for anomalous nodes)
-if display_node_type:
-    labels = sorted(list(label2node.keys()))
-    label2palette = dict(zip(labels,
-                             const_viz.pure_color_palettes[:len(label2node)]))
-    label2colors = {label: get_colors(12, label2palette[label])[::-1] for label
-                    in labels}
-
-
-else:
-    # Otherwise, we use a single color family for all nodes. But the colors are very distinct
-    label2colors = {
-        0: get_colors(10, "Spectral")
-    }
-
-print("Adding categories to the dropdown menu ...")
-options_categories = []
-
-for label, nodes_li in label2node.items():
-    options_categories.append({
-        "label": html.Span(
-            [
-                "✨",
-                html.Span(label, style={
-                    'font-size': 15,
-                    'padding-left': 10
-                }),
-            ], style={
-                'align-items': 'center',
-                'justify-content': 'center'
-            }
-        ),
-        "value": label,
-    })
-
-print("Adding nodes to the dropdown menu ...")
-
-options_nodes = []
-
-for node, idx in node2idx.items():
-    # Only add trajectories of projected or reference nodes
-    if not node in projected_nodes:
-        continue
-
-    # For the DGraphFin dataset, the background nodes (label = 2 or 3) are not meaningful due to insufficient information. So we do not visualize them
-    if display_node_type and args.dataset_name in [
-        "DGraphFin"] and node2label.get(node) is None:
-        print(f"\tIgnoring node {node} ...")
-        continue
-
-    if display_node_type:
-        label = node2label[node]
-
-        name = f"{node} ({label})"
-
-    else:
-        name = node
-
-    options_nodes.append({
-        "label": html.Span(
-            [
-                html.Span(name, style={
-                    'font-size': 15,
-                    'padding-left': 10
-                }),
-            ], style={
-                'align-items': 'center',
-                'justify-content': 'center'
-            }
-        ),
-        "value": node,  # Get a random node as the default value.
-    })
-
-options = options_categories + options_nodes
+dataset_names = ['Chickenpox', 'BMCBioinformatics2021', 'Reddit', 'DGraphFin', 'HistWords-EN-GNN']
+dataset_data = {}
+# Storing all dataset information for quick access (from the load_data() function and the trajectory information)
+for dataset_name in dataset_names:
+    print(f"Loading data for {dataset_name}...")
+    data = load_data(dataset_name)
+    visual_dir = osp.join(args.output_dir, "visual", dataset_name)
+    nodes, node2trace, label2colors, options = get_nodes_and_options(data, visual_dir)
+    # Can refactor this into one dict later...
+    dataset_data[dataset_name] = {"data": data, "nodes": nodes, "node2trace": node2trace, "label2colors": label2colors, "options": options }
 
 print("Start the app ...")
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
-
 with open('dygetviz/static/Plotly_Button_Explanations.html', 'r') as file:
     plotly_button_explanations = file.read()
 
-app.title = f"DyGetViz | {args.dataset_name}"
+app.title = f"DyGetViz | Dynamic Graph Embedding Trajectories Visualization Dashboard"
 
 app.layout = html.Div(
-    [
-        # Title
-        html.H1(f"Dataset: {args.dataset_name}",
+    [   # Title
+        html.H1(f"Dataset: {dataset_names[0]}",
+                id='dataset-title',
                 className="text-center mb-4",
                 style={
                     'color': '#2c3e50',
                     'font-weight': 'bold'
                 }),
 
-        # Dropdown Row
+ # Dropdown Row
         dbc.Row(
-            [
+            [   dbc.Col(
+                    [
+                        dbc.Label("Select Dataset:",
+                                  className="form-label mb-2",
+                                  style={
+                                      'font-weight': 'bold',
+                                      'color': '#34495e',
+                                      'width': '100%'
+                                  }),
+                    ],
+                    className="right",
+                    width=2,
+                ),
+                dbc.Col(
+                    [
+                        dcc.Dropdown(
+                            id='dataset-selector',
+                            options=dataset_names,
+                            value=dataset_names[0],
+                            searchable=False,
+                            clearable=False,
+                            style={
+                                'width': '100%'
+                            }),
+                    ],
+                    className="right",
+                    width=3,
+                ),
                 dbc.Col(
                     [
                         dbc.Label("Add a trajectory:",
@@ -178,7 +96,7 @@ app.layout = html.Div(
                                   }),
                     ],
                     className="right",
-                    width=3,
+                    width=2,
                 ),
                 dbc.Col(
                     [
@@ -196,8 +114,7 @@ app.layout = html.Div(
                     ],
                     className="center mb-4",
                     # margin-bottom to give some space below
-                    width=6
-
+                    width=4
                 )
             ],
             className="text-center mb-4"
@@ -267,7 +184,6 @@ app.layout = html.Div(
                             style={"width": "100%", "height": "500px"})
             ])
         ]),
-
     ])
 
 
@@ -282,25 +198,42 @@ def generate_node_profile(profile: pd.DataFrame):
     profile['description'] = profile.apply(f, axis=1)
     return profile
 
+def add_background(fig, figure_name2trace, node2trace, plot_anomaly_labels):
+    if figure_name2trace.get("background") is None:
+        trace = node2trace['background']
+        # trace.hovertemplate = HOVERTEMPLATE
+        fig.add_trace(trace)
+    if figure_name2trace.get("background") is None and plot_anomaly_labels:
+        trace = node2trace['anomaly']
+        fig.add_trace(trace)
+
+def add_traces(fig, figure_name2trace):
+    for name, trace in figure_name2trace.items():
+        if name not in {"background"}:
+            fig.add_trace(trace)
 
 # List to keep track of current annotations
 annotations = []
 
-
 @app.callback(
     Output('dygetviz', 'figure'),
     Output('trajectory-names-store', 'data'),
+    Output('add-trajectory', 'options'),
+    Output('dataset-title', 'children'),
+    Input('dataset-selector', 'value'),
     Input('add-trajectory', 'value'),
     Input('dygetviz', 'clickData'),
     State('dygetviz', 'figure'),
+    State('add-trajectory', 'options'),
     # Input('update-color-button', 'n_clicks'),
     # State('node-selector', 'value'),
     # State('color-picker', 'value'),
 
 )
-def update_graph(trajectory_names, clickData, current_figure,
+def update_graph(dataset_name, trajectory_names, clickData, current_figure, trajectory_options
                  # do_update_color, selected_node, selected_color,
-                 ):
+    ):
+
     """
     
     :param trajectory_names: Names of the trajectories to be added into the visualization
@@ -309,9 +242,19 @@ def update_graph(trajectory_names, clickData, current_figure,
     :param selected_node: 
     :param selected_color: 
     :param current_figure: figure from the previous update
-    :return: 
+    :return:
     """
-
+    # visual_dir = osp.join(args.output_dir, "visual", dataset_name)
+    # data = load_data(dataset_name)
+    # data = dataset_data[dataset_name]['data']
+    
+    global_store_data = dataset_data[dataset_name]
+    nodes, node2trace, label2colors, options = (global_store_data['nodes'], global_store_data['node2trace'], global_store_data['label2colors'], global_store_data['options'])
+    display_node_type: bool = global_store_data['data']["display_node_type"]
+    node2label: dict = global_store_data['data']["node2label"]
+    label2node: dict = global_store_data['data']["label2node"]
+    plot_anomaly_labels: bool = global_store_data['data']['plot_anomaly_labels']
+    title = [f"Dataset: {dataset_name}"]
     global annotations
 
     if not trajectory_names:
@@ -320,7 +263,6 @@ def update_graph(trajectory_names, clickData, current_figure,
     ctx = dash.callback_context
     action_name = ctx.triggered[0]['prop_id'].split('.')[0]
     print(f"[Action]\t{action_name}")
-
     # This is the template for displaying metadata when hovering over a node
 
     fig = go.Figure()
@@ -340,39 +282,26 @@ def update_graph(trajectory_names, clickData, current_figure,
         )
     )
 
-    if current_figure is None:
+    if current_figure is None or action_name == 'dataset-selector':
         figure_name2trace = {}
 
 
     else:
         figure_name2trace = {trace['name']: trace for idx, trace in
                              enumerate(current_figure['data'])}
-
-    def add_background():
-
-        if figure_name2trace.get("background") is None:
-            trace = node2trace['background']
-            # trace.hovertemplate = HOVERTEMPLATE
-            fig.add_trace(trace)
-
-        if figure_name2trace.get("background") is None and plot_anomaly_labels:
-            trace = node2trace['anomaly']
-            fig.add_trace(trace)
-
-    def add_traces():
-        for name, trace in figure_name2trace.items():
-            if name not in {"background"}:
-                fig.add_trace(trace)
-
-    if action_name == '':
+    if action_name == '' or action_name == 'dataset-selector':
         """Launch the app for the first time. 
         
         Only add the background nodes
         """
-        add_background()
-        return fig, trajectory_names
+        add_background(fig, figure_name2trace, node2trace, plot_anomaly_labels)
+        
+        print(fig)
+        return fig, trajectory_names, options, title
 
-    elif action_name == 'add-trajectory':
+
+
+    if action_name == 'add-trajectory':
 
         """
         From Yiqiao: I am not sure if directly modifying `current_figure` is a good practice as it will modify the original object, which can lead to unexpected behavior. In Plotly, figures are mutable objects
@@ -396,16 +325,18 @@ def update_graph(trajectory_names, clickData, current_figure,
             )
         )
 
+
+
         del figure_name2trace['background']
 
-        add_background()
+        add_background(fig, figure_name2trace, node2trace, plot_anomaly_labels)
+
 
         new_trajectory_names = list(
             set(trajectory_names) - set(figure_name2trace.keys()))
 
         print(f"New search values:\t{new_trajectory_names}")
-        for idx, value in enumerate(
-                tqdm(trajectory_names, desc="Add Trajectories")):
+        for idx, value in enumerate(tqdm(trajectory_names, desc="Add Trajectories")):
 
             if args.dataset_name == "DGraphFin" and node2label.get(
                     value) is None:
@@ -452,6 +383,7 @@ def update_graph(trajectory_names, clickData, current_figure,
     #
     #     add_traces()
 
+
     elif action_name == 'dygetviz':
         # Add annotations when user clicks on a node
         """
@@ -463,18 +395,19 @@ def update_graph(trajectory_names, clickData, current_figure,
             point_data = clickData['points'][0]
             point_idx = point_data['pointIndex']
 
+
             displayed_text = np.array(
                 list(node2trace['background']['text'])).astype(
                 '<U50')
 
-            displayed_text[point_idx] = node2trace['background']['hovertext'][
-                point_idx] if not displayed_text[point_idx] else ''
+
+            displayed_text[point_idx] = node2trace['background']['hovertext'][point_idx] if not displayed_text[point_idx] else ''
 
             node2trace['background']['text'] = tuple(displayed_text.tolist())
 
-            add_background()
+            add_background(fig, figure_name2trace, node2trace, plot_anomaly_labels)
 
-            add_traces()
+            add_traces(fig, figure_name2trace)
 
         #     point_name = df['name'].iloc[idx]
         #
@@ -499,8 +432,10 @@ def update_graph(trajectory_names, clickData, current_figure,
         #
         # fig.update_layout(annotations=annotations)
 
-    return fig, trajectory_names
 
+
+    print(fig)
+    return fig, trajectory_names, trajectory_options, title
 
 # @app.callback(
 #     Output('node-selector', 'options'),
@@ -524,10 +459,12 @@ def update_graph(trajectory_names, clickData, current_figure,
 
 
 if __name__ == "__main__":
+
     print(const.DYGETVIZ)
 
     """
     `dev_tools_hot_reload`: disable hot-reloading. The code is not reloaded when the file is changed. Setting it to `True` will be very slow.
     """
-    app.run_server(debug=True, dev_tools_hot_reload=False, use_reloader=False,
+    app.run_server(debug=True, 
+                   dev_tools_hot_reload=False, use_reloader=False,
                    port=args.port)
