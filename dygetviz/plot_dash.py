@@ -17,6 +17,8 @@ from tqdm import tqdm
 import const
 import const_viz
 from arguments import parse_args
+from components.dygetviz_components import graph_with_loading, dataset_description, interpretation_of_plot, \
+    visualization_panel
 from data.dataloader import load_data
 from utils.utils_data import get_modified_time_of_file, read_markdown_into_html
 from utils.utils_misc import project_setup
@@ -27,7 +29,8 @@ print("Loading data...")
 args = parse_args()
 project_setup()
 print("Start the app ...")
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP, "../dygetviz/assets/base.css",
+                                                "../dygetviz/assets/clinical-analytics.css"])
 
 
 data = load_data(args.dataset_name, False)
@@ -165,78 +168,112 @@ dataset_descriptions = read_markdown_into_html(osp.join(args.data_dir, args.data
 
 
 app.layout = html.Div(
-    [
-        # Title
-        html.H1(f"Dataset: {args.dataset_name}",
-                className="text-center mb-4",
-                style={
-                    'color': '#2c3e50',
-                    'font-weight': 'bold'
-                }),
+    id="app-container",
+    children=[
+        html.Div(
+            id="banner",
+            className="banner",
+            children=[
+                # html.Img(src="https://brand.gatech.edu/sites/default/files/inline-images/GeorgiaTech_RGB.png"),
+                # Title
+                html.H1(f"DyGETViz",
+                      className="text-center mb-4",
+                    ),
+                ],
+        ),
 
-        # Dropdown Row
-        dbc.Row(
-            [
-                dbc.Col(
+
+
+        # Left column: node selection, dataset description, and interpretation of the plot
+        html.Div(
+            id="left-column",
+            className="four columns",
+            children=[dbc.Row([
+                # Dropdown Row
+                dbc.Row(
                     [
-                        dbc.Label("Add a trajectory:",
-                                  className="form-label mb-2",
-                                  id="note-trajectory",
-                                  style={
-                                      'font-weight': 'bold',
-                                      'color': '#34495e',
-                                      'width': '100%'
-                                  }),
-                    ],
-                    className="right",
-                    width=3,
-                ),
-                dbc.Col(
-                    [
-                        dcc.Dropdown(
-                            id='add-trajectory',
-                            options=options,
-                            value='',
-                            multi=True,
-                            placeholder="Select a node",
-                            style={
-                                'width': '100%'
-                            },
-                            clearable=True
+                        dbc.Col(
+                            [
+                                dbc.Label("Select trajectories:",
+                                          className="form-label mb-2",
+                                          id="note-trajectory",
+                                          style={
+                                              'font-weight': 'bold',
+                                              'color': '#34495e',
+                                              'width': '100%'
+                                          }),
+                            ],
+                            className="right",
+                            width=3,
+                        ),
+                        dbc.Col(
+                            [
+                                dcc.Dropdown(
+                                    id='add-trajectory',
+                                    options=options,
+                                    value='',
+                                    multi=True,
+                                    placeholder="Select a node",
+                                    style={
+                                        'width': '100%'
+                                    },
+                                    clearable=True
+                                )
+                            ],
+                            className="center mb-4",
+                            # margin-bottom to give some space below
+                            width=6
+
                         )
                     ],
-                    className="center mb-4",
-                    # margin-bottom to give some space below
-                    width=6
+                    className="text-center mb-4"
+                    # margin-bottom to give some space below the row
+                ),
+                dbc.Row([
 
-                )
-            ],
-            className="text-center mb-4"
-            # margin-bottom to give some space below the row
+
+                    dataset_description(args.dataset_name),
+
+                    interpretation_of_plot()
+
+                    # This loads the dataset description from a markdown file.
+                    # Archived
+                    # html.Iframe(srcDoc=dataset_descriptions,
+                    #             style={"width": "100%", "height": "500px"}),
+                ]),
+
+                dbc.Row([
+                    html.H4(f"Panel", className="text-center"),
+
+                    visualization_panel(),
+                    # html.Iframe(srcDoc=plotly_button_explanations,
+                    #             style={"width": "100%", "height": "500px"})
+                ])
+            ]),
+        ]),
+
+        # Right column: visualization panel
+
+
+        
+
+        html.Div(
+            id="right-column",
+            className="eight columns",
+            children=[
+
+                # The main dashboard
+                graph_with_loading(),
+
+                # Store the nodes in `trajectory_names`
+                dcc.Store(
+                    id='trajectory-names-store',
+                    data=[])
+            ]
         ),
 
-        # Graph
-        dcc.Loading(
-            id="loading-1",  # You can use any unique ID
-            type="default",  # There are different types of loading spinners you can use
-            children=dcc.Graph(
-                id='dygetviz',
-                style={
-                    'width': '90%',
-                    'height': '700px',
-                    'box-shadow': '0 4px 6px rgba(0, 0, 0, 0.1)'
-                    # A subtle shadow for depth
-                },
-                className="text-center",
-            ),
-        ),
 
-        # html.Div("✨: a category. \n\"(1)\": a node label.", id="note"),
 
-        # Store the nodes in `trajectory_names`
-        dcc.Store(
-            id='trajectory-names-store',
-            data=[]),
 
         # Yiqiao (2023.8.24): Now we do not consider the color picker since it will give the user too much freedom
 
@@ -270,21 +307,8 @@ app.layout = html.Div(
         #                     n_clicks=0, className="me-2"),
         #     ])
         # ]),
-        dbc.Row([
-            dbc.Col([
-                html.H3(f"Dataset Introduction", className="text-center"),
-                html.Iframe(srcDoc=dataset_descriptions,
-                            style={"width": "100%", "height": "500px"}),
-                # html.P(explanation, className="text-center"),
-            ]),
 
-            dbc.Col([
-                html.H3(f"Panel", className="text-center"),
 
-                html.Iframe(srcDoc=plotly_button_explanations,
-                            style={"width": "100%", "height": "500px"})
-            ])
-        ]),
 
     ])
 
@@ -557,7 +581,7 @@ if __name__ == "__main__":
     `dev_tools_hot_reload`: disable hot-reloading. The code is not reloaded when the file is changed. Setting it to 
     `True` will make the code run very slow.
     """
-    app.run_server(debug=True, dev_tools_hot_reload=False, use_reloader=False,
+    app.run_server(debug=True, dev_tools_hot_reload=True, use_reloader=True,
                    port=args.port)
 
     # app.run_server(debug=True, port=args.port)

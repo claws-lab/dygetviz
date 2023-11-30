@@ -32,6 +32,14 @@ def to_dict(obj):
 
 
 def read_markdown_into_html(path: str):
+    """
+    An archived function that reads markdown into html.
+    Args:
+        path:
+
+    Returns:
+
+    """
     import markdown
     with open(path, 'r', encoding='utf-8') as markdown_file:
         markdown_text = markdown_file.read()

@@ -1,25 +1,33 @@
-# DyGETViz
+# 🌟DyGETViz
 
 Our framework is DyGETViz, which stands for **Dynamic Graph Embedding Trajectories Visualization**.
 
 <img src="assets/img/illustration1.png" width="80%" style="display: block; margin: 0 auto;" />
 
+[[Project Page](http://dygetviz.eastus.cloudapp.azure.com/)] [[Demo](http://dygetviz.eastus.cloudapp.azure.com/)] [[Data](#)]
+
+## Contents
+- [Installation](#installation)
+- [LLaVA Weights](#llava-weights)
+- [Demo](#Demo)
+- [Model Zoo](https://github.com/haotian-liu/LLaVA/blob/main/docs/MODEL_ZOO.md)
+- [Dataset](https://github.com/haotian-liu/LLaVA/blob/main/docs/Data.md)
+- [Train](#train)
+- [Evaluation](#evaluation)
+
 
 ## Installation
 
-Create a new conda environment:
+### Automatic Installation
 
 ```bash
-conda create -n dygetviz python=3.9
+conda create -n dygetviz python=3.9 -y
 conda activate dygetviz
-````
+pip install --upgrade pip  # enable PEP 660 support
+pip install -e .
+```
 
-To install the dependencies, run:
-
-```bash
-pip install -r requirements.txt
-````
-
+### Manual Installation
 
 If you want to manually install the dependencies, run:
 
@@ -29,8 +37,19 @@ conda install -c conda-forge dash dash-daq dash-bootstrap-components biopython
 pip install umap
 ```
 
+Please refer to the homepage of [PyTorch](https://pytorch.org/get-started/locally/), [PyTorch Geometric](https://pytorch-geometric.readthedocs.io/en/latest/install/installation.html), and [PyTorch Geometric Temporal](https://pytorch-geometric-temporal.readthedocs.io/en/latest/notes/installation.html) to install these 3 packages, respectively.
 
-Please refer to the homepage of [PyTorch](https://pytorch.org/get-started/locally/), [PyTorch Geometric](https://pytorch-geometric.readthedocs.io/en/latest/install/installation.html), and [PyTorch Geometric Temporal](https://pytorch-geometric-temporal.readthedocs.io/en/latest/notes/installation.html) to install these 3 packages, respectively. 
+### Upgrade to latest code base
+
+```Shell
+git pull
+pip install -e .
+```
+
+## Demo
+
+Please check our demo at [our website](http://dygetviz.eastus.cloudapp.azure.com/).
+
 
 
 ### Download the data
@@ -137,8 +156,8 @@ ID  NAME    LABEL
 ## Terminology
 
 - `DG`: Dynamic Graphs, which can be categorized into DTDG and CTDG
-- `DTDG`: Discrete-Time Dynamic Graphs
-- `CTDG`: Discrete-Time Dynamic Graphs
+- `DTDG`: Discrete-Time Dynamic Graphs (the type of graphs we are dealing with)
+- `CTDG`: Continuous-Time Dynamic Graphs
 - `Embedding Trajectories`: Please refer to the [JODIE paper (KDD2019)]() for more details
 
 ## Datasets
