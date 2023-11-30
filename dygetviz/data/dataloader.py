@@ -238,7 +238,7 @@ def load_data(dataset_name: str, use_tgb: bool=False) -> dict:
         reference_nodes = np.array(list(node2idx.keys()))
 
         # Only plot the first 100 snapshots, otherwise the plot is too crowded
-        snapshot_names = snapshot_names[0:100]
+        # snapshot_names = snapshot_names[0:100]
 
         weekly_cases = pd.read_csv(
             osp.join("data", dataset_name, "hungary_chickenpox.csv"))
@@ -269,7 +269,7 @@ def load_data(dataset_name: str, use_tgb: bool=False) -> dict:
 
 
     elif dataset_name == "BMCBioinformatics2021":
-        label2node = {
+        label2name = {
             0: "NON-aging-related",
             1: "aging-related"
         }
