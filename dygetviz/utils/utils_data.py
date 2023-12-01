@@ -1,9 +1,13 @@
+import base64
+import io
 import json
 import logging
 import os
 import os.path as osp
 import traceback
 from typing import Union
+
+import pandas as pd
 
 from utils.utils_logging import configure_default_logging
 
@@ -29,6 +33,22 @@ def to_dict(obj):
             # Recursively convert object attribute to dict
             obj_dict[key] = to_dict(val)
     return obj_dict
+
+
+def parse_contents(contents, filename):
+    content_type, content_string = contents.split(",")
+    decoded = base64.b64decode(content_string)
+    try:
+        if "csv" in filename:
+            # Assuming the uploaded file is a CSV, parse it
+            df = pd.read_csv(io.StringIO(decoded.decode("utf-8")))
+            return df
+        else:
+            return "Invalid file format, please upload a CSV file."
+    except Exception as e:
+        print(e)
+        return "An error occurred while processing the file."
+
 
 
 def read_markdown_into_html(path: str):
