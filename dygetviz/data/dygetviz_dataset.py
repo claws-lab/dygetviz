@@ -7,8 +7,8 @@ import numpy as np
 from typing import List, Union
 from torch_geometric.data import Data
 
-from dygetviz.data.download import download_file_from_google_drive
-from dygetviz.const import DATASET2FILEID
+from data.download import download_file_from_google_drive
+from const import DATASET2FILEID
 
 
 Edge_Index = Union[np.ndarray, None]

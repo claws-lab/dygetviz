@@ -9,8 +9,8 @@ from typing import List, Union
 from torch_geometric.data import Data
 from torch_geometric_temporal import DynamicGraphStaticSignal
 
-from dygetviz.data.dygetviz_dataset import DyGETVizDataset
-from dygetviz.data.static_graph_static_signal import StaticGraphStaticSignal
+from data.dygetviz_dataset import DyGETVizDataset
+from data.static_graph_static_signal import StaticGraphStaticSignal
 
 Edge_Index = Union[np.ndarray, None]
 Edge_Weight = Union[np.ndarray, None]

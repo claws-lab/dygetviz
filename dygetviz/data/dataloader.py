@@ -18,7 +18,7 @@ from torch_geometric_temporal import ChickenpoxDatasetLoader, \
 from arguments import parse_args
 from data.download import download_file_from_google_drive
 
-from dygetviz.data.chickenpox import ChickenpoxDataset
+from data.chickenpox import ChickenpoxDataset
 from generate_dtdg_embeds_tgb import train_dynamic_graph_embeds_tgb
 from utils.utils_logging import configure_default_logging
 
