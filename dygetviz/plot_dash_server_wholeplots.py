@@ -269,6 +269,7 @@ def update_graph(dataset_name, trajectory_names, clickData, current_figure, traj
 
     # fig = go.Figure(data=cached_figure.data, cached_figure.frames, cached_figure.layout)
     fig = cached_figure
+    fig.layout.updatemenus = []
     fig.update_layout(
         plot_bgcolor='white',
         xaxis=dict(
