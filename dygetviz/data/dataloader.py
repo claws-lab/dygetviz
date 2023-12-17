@@ -322,6 +322,8 @@ def load_data(dataset_name: str, use_tgb: bool=False) -> dict:
                 node_presence = np.load(
                     osp.join("data", dataset_name, "node_presence.npy"))
 
+                node_presence = node_presence.astype(bool)
+
 
             assert len(node_presence.shape) == 2
 
