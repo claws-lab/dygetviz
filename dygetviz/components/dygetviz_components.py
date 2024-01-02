@@ -9,7 +9,7 @@ def dataset_description(dataset_name: str):
                 f"Dataset",
                 className="text-center"),
         html.P([
-            dbc.Button("Genetics dataset about aging", id="genetics-dataset-button", color="primary"),
+            dbc.Button("Genetics dataset about aging", id="genetics-dataset-button", color="black"),
             dbc.Tooltip(
                 "Qi Li, Khalique Newaz and Tijana Milenković. Improved supervised prediction of aging‐related genes via weighted dynamic network analysis. BMC Bioinformatics 2021.",
                 target="genetics-dataset-button"
@@ -18,7 +18,9 @@ def dataset_description(dataset_name: str):
         ]),
         html.Span(children=["Dynamic graph embeddings are generated using "]),
 
-        dbc.Button(children=["Graph Convolutional Recurrent Networks (GCRU)"], id="gcru", color="primary"),
+        dbc.Button(children=["Graph Convolutional Recurrent Networks (GCRU)"], id="gcru",
+                   color='black'
+                   ),
         dbc.Tooltip(
             children=["Youngjoo Seo, Michael Defferrard, Pierre Vandergheynst, Xavier Bresson. Structured Sequence "
                       "Modeling with Graph Convolutional Recurrent Networks. CONIP 2018"],
@@ -105,7 +107,6 @@ def visualization_panel():
 
         children_components.append(
             html.Div([button_icon, button_description], style={'display': 'flex', 'align-items': 'center'}))
-
 
     # Limit the width of the panel
     component = html.Div(children_components, style={'max-width': '400px'})
