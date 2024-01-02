@@ -1,6 +1,7 @@
 Bio
 biopython
 dash
+dash_ag_grid
 dash_bootstrap_components
 dash_dangerously_set_inner_html
 Markdown

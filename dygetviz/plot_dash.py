@@ -10,17 +10,22 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.io as pio
-from dash import dcc, html
+from dash import dcc, html, no_update
 from dash.dependencies import Input, Output, State
+import dash_mantine_components as dmc
+from dash_iconify import DashIconify
 from tqdm import tqdm
+
+import dash_ag_grid as dag
 
 import const
 import const_viz
 from arguments import parse_args
 from components.dygetviz_components import graph_with_loading, dataset_description, interpretation_of_plot, \
     visualization_panel
+from components.upload import upload_panel
 from data.dataloader import load_data
-from utils.utils_data import get_modified_time_of_file, read_markdown_into_html
+from utils.utils_data import get_modified_time_of_file, read_markdown_into_html, parse_contents
 from utils.utils_misc import project_setup
 from utils.utils_visual import get_colors
 
@@ -65,11 +70,16 @@ path = osp.join(args.visual_dir, f"Trajectory_{visualization_name}.json")
 
 get_modified_time_of_file(path)
 
-fig_cached = pio.read_json(path)
+if args.debug:
+    fig_cached = node2trace = None
 
-node2trace = {
-    trace['name'].split(' ')[0]: trace for trace in fig_cached.data
-}
+
+else:
+    fig_cached = pio.read_json(path)
+
+    node2trace = {
+        trace['name'].split(' ')[0]: trace for trace in fig_cached.data
+    }
 
 print("Getting candidate nodes ...")
 
@@ -174,17 +184,17 @@ app.layout = html.Div(
             id="banner",
             className="banner",
             children=[
-                html.Img(src="https://brand.gatech.edu/sites/default/files/inline-images/GeorgiaTech_RGB.png"),
+                # html.Img(src="https://brand.gatech.edu/sites/default/files/inline-images/GeorgiaTech_RGB.png"),
                 # Title
                 html.H1(f"DyGETViz",
                       className="text-center mb-4",
-                        ),
+                    ),
                 ],
         ),
 
 
 
-        # Left column
+        # Left column: node selection, dataset description, and interpretation of the plot
         html.Div(
             id="left-column",
             className="four columns",
@@ -252,7 +262,11 @@ app.layout = html.Div(
             ]),
         ]),
 
-        # Right column
+        # Right column: visualization panel
+
+
+        
+
         html.Div(
             id="right-column",
             className="eight columns",
@@ -264,9 +278,24 @@ app.layout = html.Div(
                 # Store the nodes in `trajectory_names`
                 dcc.Store(
                     id='trajectory-names-store',
-                    data=[])
+                    data=[]),
+
+                dcc.Store(id="dataset-store", storage_type="local"),
+                dmc.Container(
+                    [
+                        dmc.Stack(
+                            [
+                                upload_panel(),
+                            ]
+                        ),
+                    ]
+                ),
+
             ]
         ),
+
+
+
 
         # Yiqiao (2023.8.24): Now we do not consider the color picker since it will give the user too much freedom
 
@@ -411,7 +440,10 @@ def update_graph(trajectory_names, clickData, current_figure,
         
         Only add the background nodes
         """
-        add_background()
+
+        # In debug mode, we do not manipulate the figure. Only test the upload module
+        if not args.debug:
+            add_background()
         return fig, trajectory_names
 
     elif action_name == 'add-trajectory':
@@ -544,6 +576,67 @@ def update_graph(trajectory_names, clickData, current_figure,
         # fig.update_layout(annotations=annotations)
 
     return fig, trajectory_names
+
+
+
+@app.callback(
+    Output("dataset-store", "data"),
+    Input("upload-data", "contents"),
+    State("upload-data", "filename"),
+    prevent_initial_call=True,
+)
+def store_data(contents, filename):
+    if contents is not None:
+        df = parse_contents(contents, filename)
+        return df.to_json(orient="split")
+
+
+@app.callback(
+    Output("output-data-upload", "children"),
+    Output("output-data-upload-preview", "children"),
+    Output("upload-data", "style"),
+    Output("upload-data", "children"),
+    Input("dataset-store", "data"),
+)
+def load_data(dataset):
+    if dataset is not None:
+        df = pd.read_json(dataset, orient="split")
+        table_preview = dag.AgGrid(
+            id="data-preview",
+            rowData=df.to_dict("records"),
+            style={"height": "275px"},
+            columnDefs=[{"field": i} for i in df.columns],
+        )
+        return (
+            table_preview,
+            table_preview,
+            {
+                "borderWidth": "1px",
+                "borderStyle": "dashed",
+                "borderRadius": "5px",
+                "textAlign": "center",
+                "padding": "7px",
+                "backgroundColor": "#fafafa",
+            },
+            dmc.Group(
+                [
+                    html.Div(
+                        [
+                            "Drag and Drop or",
+                            dmc.Button(
+                                "Replace file",
+                                ml=10,
+                                leftIcon=DashIconify(icon="mdi:file-replace"),
+                            ),
+                        ]
+                    )
+                ],
+                position="center",
+                align="center",
+                spacing="xs",
+            ),
+        )
+    return no_update
 
 
 # @app.callback(
