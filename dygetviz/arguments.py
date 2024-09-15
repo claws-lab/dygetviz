@@ -4,24 +4,33 @@ import os.path as osp
 import uuid
 from pprint import pprint
 
-import const
-from const import *
+import dygetviz.const as const
+from dygetviz.const import *
+from dygetviz.utils.utils_logging import configure_default_logging
 
-if platform.system() == "Windows":
-    DEVICE = "cuda:0"
-
-elif platform.system() == "Linux":
-    DEVICE = "cuda:0"
+configure_default_logging()
+logger = logging.getLogger(__name__)
 
 
-elif platform.system() == "Darwin":
-    DEVICE = "mps:0"
+def parse_args():
+
+    if platform.system() in ["Windows", "Linux"]:
+        import torch
+
+        if torch.cuda.is_available():
+            DEFAULT_DEVICE = "cuda:0"
+        else:
+            DEFAULT_DEVICE = "cpu"
 
 
-else:
-    raise NotImplementedError("Unknown System")
+    elif platform.system() == "Darwin":
+        DEVICE = "mps:0"
 
-print(f"Your system: {platform.system()}. Default device: {DEVICE}")
+
+    else:
+        raise NotImplementedError("Unknown System")
+
+    print(f"Your system: {platform.system()}. Default device: {DEVICE}")
 
 
 
@@ -162,9 +171,23 @@ parser.add_argument('--visualization_dim', type=int, choices=[2, 3], default=2, 
 parser.add_argument('--visualization_model', type=str, choices=[const.TSNE, const.UMAP, const.PCA, const.ISOMAP, const.MDS], default=const.TSNE,
                     help="Visualization model to use")
 
-args = parser.parse_args()
-
+# args = parser.parse_args()
+args, unknown = parser.parse_known_args()
+if args.in_channels is None:
+    args.in_channels = args.embedding_dim
 args.num_nearest_neighbors = eval(args.num_nearest_neighbors)
+
+if args.test_size > 0.:
+    args.do_test = True
+else:
+    args.do_test = False
+
+if args.val_size > 0.:
+    args.do_val = True
+else:
+    args.do_val = False
+
+args.train_size = 1 - args.test_size - args.val_size
 
 args.visual_dir = osp.join(args.output_dir, "visual", args.dataset_name)
 os.makedirs(args.visual_dir, exist_ok=True)

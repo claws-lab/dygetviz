@@ -8,12 +8,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-import const
-import const_viz
+import dygetviz.const as const
+import dygetviz.const_viz as const_viz
 
 import plotly.io as pio
-from data.dataloader import load_data
-from utils.utils_data import get_modified_time_of_file
+from dygetviz.data.dataloader import load_data
+from dygetviz.utils.utils_data import get_modified_time_of_file
 
 from dash import dcc, html
 

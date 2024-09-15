@@ -4,6 +4,11 @@ import random
 
 import numpy as np
 
+from dygetviz.utils.utils_logging import configure_default_logging
+
+configure_default_logging()
+logger = logging.getLogger(__name__)
+
 
 def project_setup():
     from utils.utils_data import check_cwd

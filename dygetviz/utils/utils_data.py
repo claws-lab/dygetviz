@@ -4,6 +4,12 @@ import os.path as osp
 import traceback
 from typing import Union
 
+from dygetviz.utils.utils_logging import configure_default_logging
+
+configure_default_logging()
+logger = logging.getLogger(__name__)
+
+
 
 def check_cwd():
     basename = osp.basename(osp.normpath(os.getcwd()))

@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 
-import const
-from const_viz import *
+import dygetviz.const as const
+from dygetviz.const_viz import *
 
 
 def get_dataframe_for_visualization(z, args, nodes_li, idx_reference_node, **kwargs):
